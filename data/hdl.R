@@ -1,16 +1,18 @@
-library(reshape2);library(dplyr);library(stringr);library(Metabase)
-library(data.table);library(tidyr);library(tibble);library(readxl)
-rm(list=ls())
+pkgs = c("dplyr", "reshape2", "stringr", "tidyr", "tibble", "data.table",
+         "Metabase", "readxl")
+for(pkg in pkgs){
+    library(pkg, character.only = TRUE, warn.conflicts = FALSE, 
+            quietly = TRUE, verbose = FALSE)
+}
 
 ################################################################################
 ##########                      L I P I D O M E                       ##########
 ################################################################################
 
 ## -------- load data ----------------------------------------------------------
-setwd("~/Box Sync/UC Davis/Right Now/Researches/Zivkovic Lab/Ghana_Study/Analysis/analysis")
-
+## Note: set the working directory to the location of this script before running it.
 pos = import_wcmc_excel(
-    file = "raw_data/MX388497_Zhu_CSH_Submit.xlsx",
+    file = "../raw_data/MX388497_Zhu_CSH_Submit.xlsx",
     sheet = "Positive Submit",
     conc_range = "K8:DB1742",
     sample_range = "J1:DB7",
@@ -19,7 +21,7 @@ pos = import_wcmc_excel(
     experiment_type = "Lipidomcis"
 )
 neg = import_wcmc_excel(
-    file = "raw_data/MX388497_Zhu_CSH_Submit.xlsx",
+    file = "../raw_data/MX388497_Zhu_CSH_Submit.xlsx",
     sheet = "Negative Submit",
     conc_range = "K8:DD610",
     sample_range = "J1:DD7",
@@ -61,14 +63,13 @@ feature_data(lpd)$class = assign_lipid_class(feature_data(lpd)$Annotation)
 experiment_data(lpd)$institute = "West Coast Metabolomics Center"
 experiment_data(lpd)$sample_volumn_ul = 20
 experiment_data(lpd)$internal_standards = standards
+# remove PI (phosphatidyl inositol), CUDA, and AC (acyl-carnitines)
 lpd = subset_features(
     lpd, !lpd$feature_data$class %in% c("CUDA", "PI", "AC"))
-## using PC to calibrate PI. Not the best
 PI_featNames = featureNames(lpd)[!lpd$feature_data$class %in% standards$class]
-# lpd$feature_data$class[featureNames(lpd) %in% PI_featNames] = "PC"
 lpd = calibrate_lipidomics_wcmc(lpd, cid = "InChIKey", 
                                 class = "class", ESI = "ESI")
-# lpd$feature_data$class[featureNames(lpd) %in% PI_featNames] = "PI"
+
 ## filter negative and positive features
 lpd = filter_by_cv(lpd, cv = "qc_cv", cid = "InChIKey")
 lpd$feature_data$Annotation = lipid_name_formater(lpd$feature_data$Annotation)
@@ -110,5 +111,5 @@ Lipidome = list(
     eod = lpd_eod,
     ratios = lpd_ratio
 )
-save(Lipidome, file = "Rdata/hdl.rda")
+save(Lipidome, file = "data/hdl.rda")
 
