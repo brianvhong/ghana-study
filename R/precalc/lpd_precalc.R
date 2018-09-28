@@ -6,60 +6,42 @@ for(pkg in pkgs){
 }
 
 ## --------------------- load data -------------------------
-rm(list=ls())
-setwd("/Users/chenghaozhu/Box Sync/UC Davis/Right Now/Researches/Zivkovic Lab/Ghana_Study/Analysis/R/precalc")
-load("../../Rdata/hdl.Rdata")
-edata = Lipidome$edata
-pdata = Lipidome$pdata
-fdata = Lipidome$fdata
+load("../../data/hdl.rda")
 
-## -------------------- edata list ------------------------
-edata_conc = edata
-rownames(edata_conc) = fdata$Annotation
-
-edata_prop = sapply(edata, function(col){
-    return(col/sum(col))
-}) %>% as.data.frame
-rownames(edata_prop) = fdata$Annotation
-
-
-# Get the lipid class table
-edata_class = sapply(edata, function(col){
-    tapply(col, fdata$class, sum)
-}) %>% as.data.frame
-
-edata_class_prop = sapply(edata_class, function(col){
-    return(col/sum(col))
-}) %>% as.data.frame
-rownames(edata_class_prop) = rownames(edata_class)
-
-# Construct the data list
-edata_list = list(
-    class = list(
-        "Concentration" = edata_class,
-        "Proportion" = edata_class_prop
-    ),
-    species = list(
-        "Concentration" = edata_conc,
-        "Proportion" = edata_prop
-    )
-)
-
-## ----------------------- limma ---------------------------
-# limma modeling
-# design = model.matrix(data=pdata, ~TX + Day + TX*Day + Subj + 1)
-# runLimma = function(edata, design){
-#     data = log2(edata+1)
-#     fit = lmFit(data, design)
-#     fit_ebayes = eBayes(fit)
-#     fit_top = topTable(fit_ebayes, coef=23, number = nrow(edata), p.value=23, 
-#                        sort.by='none')
-#     return(fit_top)
-# }
-# limma_list = lapply(edata_list, function(data_sublist){
-#     lapply(data_sublist, function(data) runLimma(data, design))
-# })
-
+## -------- summarization ------------------------------------------------------
+lpd_prop = transform_by_sample(lpd, function(x) x/sum(x))
+lpd_class = summarize_features(lpd_prop, "class")
+## calculate the molecular weight
+data("wcmc_adduct")
+molwt = as.numeric(rep(NA, nfeatures(lpd)))
+for(i in 1:nfeatures(lpd)){
+    species = str_split(lpd$feature_data$Species[i], "\\_")[[1]]
+    species = gsub("\\[", "", species)
+    species = gsub("\\]", "", species)
+    species = gsub("\\+$", "", species)
+    species = gsub("\\-$", "", species)
+    species = species[species %in% rownames(wcmc_adduct)]
+    species = species[which.min(1 * wcmc_adduct[species,]$Mult + wcmc_adduct[species,]$Mass)]
+    if(length(species) == 0) next
+    mz = as.numeric(str_split(lpd$feature_data$`m/z`[i], "\\_")[[1]])
+    mz = mz[which.min(mz)]
+    molwt[i] = mz2molwt(species, mz)
+}
+lpd$feature_data$molwt = molwt
+## more summarization
+lpd_mol = transform_by_sample(lpd, function(x) x/molwt)
+lpd_eod = summarize_EOD(lpd_mol, name = "Annotation", class = "class")
+lpd_acl = summarize_ACL(lpd_mol, name = "Annotation", class = "class")
+lpd_ratio = summarize_lipid_ratios(lpd_mol, name = "Annotation", class = "class")
+lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/LPC", "CE/TG"))
+featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
+featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
 ## ---------------------- save ----------------------------
-save(edata_list, pdata, fdata,
-     file="../Rdata/lpd_precalc.Rdata")
+lpd = list(
+    class = lpd_class,
+    species = lpd,
+    acl = lpd_acl,
+    eod = lpd_eod,
+    ratios = lpd_ratio
+)
+save(lpd, file="../Rdata/lpd_precalc.Rdata")
