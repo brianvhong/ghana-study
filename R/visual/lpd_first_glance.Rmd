@@ -1,0 +1,124 @@
+---
+title: "Lipidome A Quick Glance"
+output:
+    flexdashboard::flex_dashboard:
+        navbar:
+            - { icon: "fa-home",
+                title: "Home", 
+                href: "../../index.html", 
+                align: left }
+        source_code: embed
+runtime: shiny 
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = F, warning =F, error = F, message=F)
+```
+
+```{r, packages}
+pkgs = c('plyr', 'dplyr','stringr','reshape2','tibble', 'data.table', 'DT',
+         "ggplot2", "ggsci","plotly")
+for(pkg in pkgs){
+    library(pkg, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, 
+            character.only=TRUE)
+}
+```
+
+```{r}
+load("../Rdata/lpd_precalc.Rdata")
+```
+
+```{r}
+set.seed(180525)
+edata = edata_list$species$Proportion
+edata = log(as.matrix(edata)+1)
+edata_scale = scale(edata)
+clusters = kmeans(t(edata_scale),2)
+pca = prcomp(edata_scale)
+```
+
+Column
+--------------------------
+
+### [Figure 1] PCA plot with K-means clustering
+
+```{r}
+df = data.frame(
+    PC1 = pca$rotation[,"PC1"],
+    PC2 = pca$rotation[,"PC2"],
+    PC3 = pca$rotation[,"PC3"],
+    sample_id = rownames(pca$rotation),
+    cluster = factor(clusters$cluster)
+)
+pca_std = pca$sdev/sum(pca$sdev)
+
+p = ggplot(df, aes(PC1, PC2, Sample=sample_id)) +
+    geom_point(aes(color = cluster), size=3, alpha=0.5) +
+    scale_color_lancet() +
+    theme_bw() +
+    labs(
+        x=str_c("PC1 [", round(pca_std[1]*100,1),"% explained]"),
+        y=str_c("PC2 [", round(pca_std[2]*100,1),"% explained]")
+    )
+ggplotly(p)
+```
+
+### [Figure 3] QC
+
+```{r}
+df = data.frame(
+    feature = fdata$Annotation,
+    qc_mean = fdata$qc_mean,
+    qc_cv = fdata$qc_cv,
+    class = fdata$class,
+    ESI = fdata$ESI
+)
+p = ggplot(df, aes(x = log(qc_mean), y = qc_cv, Feature = feature, ESI = ESI)) +
+    geom_point(aes(color=class), size=2, alpha=0.5) +
+    geom_hline(yintercept = 0.2, linetype="dashed", color="darkred", size=1) +
+    scale_color_manual(
+        values = colorRampPalette(colors = pal_lancet()(9))(11)
+    )+
+    labs(
+        x = "Mean (log)", y = "CV"
+    ) +
+    theme_bw()
+ggplotly(p)
+```
+
+
+
+Column
+--------------------
+
+### [Figure 2] HDL Lipidome Composition
+
+```{r}
+df = data.frame(
+    Value = rowMeans(edata_list$class$Concentration)
+)  %>%
+    rownames_to_column("Class") %>%
+    arrange(desc(Value))
+plot_ly(df, labels=~Class, values=~Value, type="pie",
+        textposition = "inside",
+        textinfo = "label+percent",
+        insidetextfont = list(color = "#FFFFFF"),
+        marker=list(
+            colors = colorRampPalette(colors=pal_lancet()(9))(11),
+            line = list(color="#FFFFFF",width=1)
+        )) %>%
+    layout(
+        xaxis=list(
+            showgrid=F, zeroline=F, showticklabels=F
+        )
+    )
+```
+
+### Description
+<div style="display:table; margin:auto">
+* **Figure 1:** PCA plot of all 419 lipidomic features. The relative proportion data was log transfered and scaled before plotting. K-means clustering was done on all samples with a nc = 2. The K-means clusters were labeled in different colors.
+
+* **Figure 2:** HDL Lipidome Composition at lipid class level. Fatty acid is surprisingly high while cholesterol and cholesteryl esters are very low. This HDL lipidome pattern is very different from our previous observation.
+
+* **Figure 3:** QC plot of all 419 lipidomic features. The mean and cv for each feature is calculated using QC samples. Most of the features (373/419 89%) are below 20% CV.
+</div>
