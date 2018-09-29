@@ -1,0 +1,2 @@
+README
+ghana study
