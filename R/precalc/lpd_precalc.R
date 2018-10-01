@@ -1,11 +1,11 @@
-## -------------------- load packages -----------------------
+## -------- load packages ------------------------------------------------------
 pkgs = c('plyr', 'dplyr','stringr','reshape2','tibble',"limma")
 for(pkg in pkgs){
     library(pkg, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, 
             character.only=TRUE)
 }
 
-## --------------------- load data -------------------------
+## -------- load data ----------------------------------------------------------
 load("../../data/hdl.rda")
 
 ## -------- summarization ------------------------------------------------------
@@ -36,7 +36,8 @@ lpd_ratio = summarize_lipid_ratios(lpd_mol, name = "Annotation", class = "class"
 lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/LPC", "CE/TG"))
 featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
 featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
-## ---------------------- save ----------------------------
+
+## -------- save ---------------------------------------------------------------
 lpd = list(
     class = lpd_class,
     species = lpd,
