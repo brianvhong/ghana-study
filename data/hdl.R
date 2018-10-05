@@ -1,9 +1,11 @@
 pkgs = c("dplyr", "reshape2", "stringr", "tidyr", "tibble", "data.table",
-         "Metabase", "readxl")
+         "Metabase", "readxl","sas7bdat")
 for(pkg in pkgs){
     library(pkg, character.only = TRUE, warn.conflicts = FALSE, 
             quietly = TRUE, verbose = FALSE)
 }
+
+setwd(dirname(parent.frame(2)$ofile))
 
 ################################################################################
 ##########                      L I P I D O M E                       ##########
@@ -75,6 +77,18 @@ lpd = filter_by_cv(lpd, cv = "qc_cv", cid = "InChIKey")
 lpd$feature_data$Annotation = lipid_name_formater(lpd$feature_data$Annotation)
 lpd$feature_data$Annotation = make.unique(lpd$feature_data$Annotation)
 featureNames(lpd) = lpd$feature_data$Annotation
+
+## read additional sample data
+group_data <- read.sas7bdat("../raw_data/lipidomics_analytic_20180904.sas7bdat")
+group_data <- subset(group_data, CE != "NaN")
+group_data <- group_data[1:13]
+group_data$flipgroup <- factor(group_data$flipgroup)
+group_data$sample_id <- paste("Ghana", group_data$wid)
+rownames(group_data) <- group_data$sample_id
+
+lpd = subset_samples(lpd, rownames(group_data))
+lpd$sample_table = sample_table(cbind(group_data, lpd$sample_table))
+
 ## -------- save ---------------------------------------------------------------
-save(lpd, file = "../data/hdl.rda")
+save(lpd, file = "hdl.rda")
 
