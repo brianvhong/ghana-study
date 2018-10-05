@@ -5,6 +5,8 @@ for(pkg in pkgs){
             character.only=TRUE)
 }
 
+setwd(dirname(parent.frame(2)$ofile))
+
 ## -------- load data ----------------------------------------------------------
 load("../../data/hdl.rda")
 
@@ -40,9 +42,15 @@ featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
 ## -------- save ---------------------------------------------------------------
 lpd = list(
     class = lpd_class,
-    species = lpd,
+    species = lpd_prop,
     acl = lpd_acl,
     eod = lpd_eod,
     ratios = lpd_ratio
 )
-save(lpd, file="../Rdata/lpd_precalc.Rdata")
+
+## -------- linear model -------------------------------------------------------
+design = model.matrix(data = as(lpd_class$sample_table, "data.frame"), ~flipgroup + 1)
+limma_list = lapply(lpd, function(data){
+        mSet_limma(data, design, coef = 2, p.value = 2)
+})
+save(lpd, limma_list, file="../Rdata/lpd_precalc.Rdata")
