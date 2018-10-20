@@ -1,0 +1,70 @@
+---
+title: "lpd_vis.Rmd"
+output: html_document
+runtime: shiny
+---
+```{r, include=F}
+knitr::opts_chunk$set(echo = F, warning =F, error = F, message=F)
+```
+
+```{r}
+library(dplyr)
+library(reshape2)
+library(stringr)
+library(tibble)
+library(ggplot2)
+library(Metabase)
+library(knitr)
+library(DT)
+library(plotly)
+
+load("../Rdata/lpd_precalc.Rdata")
+```
+
+```{r}
+#datatable(limma_list$class)
+```
+
+```{r}
+inputPanel(
+    selectInput("level", "Select from here", 
+                choices = names(lpd), selected = "class")
+)
+```
+
+```{r}
+renderPlotly({
+df = data.frame(
+    PE_conc  = lpd[[input$level]]$conc_table[feature_selector(),], 
+    PE_group = lpd[[input$level]]$sample_table$flipgroup,
+    wid = lpd[[input$level]]$sample_table$wid
+)
+    p = ggplot(df, aes(x = PE_group, y = PE_conc, wid = wid)) +
+    geom_boxplot(outlier.color = NA) +
+    geom_point(position = position_jitter(width = 0.2), alpha = 0.7, shape = 21, color = "white", fill = "black", size = 2.5) +
+    xlab("group") +
+    ylab("conc") +
+    ggtitle("boxplot") +
+    theme_bw() +
+    theme(plot.title = element_text(hjust = 0.5))
+ggplotly(p)
+})
+```
+
+```{r}
+stats_table = reactive({
+    limma_list[[input$level]]
+})
+
+output$stats_table = renderDataTable(
+    stats_table(),
+    selection = list(mode = "single", selected = 1),
+    server=T
+    )
+feature_selector = reactive({
+    rownames(stats_table())[input$stats_table_rows_selected]
+})
+
+dataTableOutput("stats_table")
+```
+
