@@ -1,10 +1,9 @@
 ## -------- load packages ------------------------------------------------------
-pkgs = c('plyr', 'dplyr','stringr','reshape2','tibble',"limma")
+pkgs = c('plyr', 'dplyr','stringr','reshape2','tibble',"Metabase", "MatCorR")
 for(pkg in pkgs){
     library(pkg, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, 
             character.only=TRUE)
 }
-
 setwd(dirname(parent.frame(2)$ofile))
 
 ## -------- load data ----------------------------------------------------------
@@ -13,9 +12,11 @@ load("../../data/hdl.rda")
 ## -------- summarization ------------------------------------------------------
 lpd_prop = transform_by_sample(lpd, function(x) x/sum(x))
 lpd_class = summarize_features(lpd_prop, "class")
+
 ## calculate the molecular weight
 data("wcmc_adduct")
 molwt = as.numeric(rep(NA, nfeatures(lpd)))
+
 for(i in 1:nfeatures(lpd)){
     species = str_split(lpd$feature_data$Species[i], "\\_")[[1]]
     species = gsub("\\[", "", species)
@@ -29,7 +30,9 @@ for(i in 1:nfeatures(lpd)){
     mz = mz[which.min(mz)]
     molwt[i] = mz2molwt(species, mz)
 }
+
 lpd$feature_data$molwt = molwt
+
 ## more summarization
 lpd_mol = transform_by_sample(lpd, function(x) x/molwt)
 lpd_eod = summarize_EOD(lpd_mol, name = "Annotation", class = "class")
@@ -39,7 +42,6 @@ lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/L
 featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
 featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
 
-## -------- save ---------------------------------------------------------------
 lpd = list(
     class = lpd_class,
     species = lpd_prop,
@@ -49,8 +51,19 @@ lpd = list(
 )
 
 ## -------- linear model -------------------------------------------------------
-design = model.matrix(data = as(lpd_class$sample_table, "data.frame"), ~flipgroup + 1)
+design = model.matrix(data = as(lpd_class$sample_table, "data.frame"), 
+                      ~flipgroup + 1)
 limma_list = lapply(lpd, function(data){
         mSet_limma(data, design, coef = 2, p.value = 2)
 })
-save(lpd, limma_list, file="../Rdata/lpd_precalc.Rdata")
+
+## -------- correlation --------------------------------------------------------
+## calculate correlation against anthropometric values.
+X = t(lpd$class$sample_table[,c("waz18", "laz18", "wlz18", "hcz18", "momht")])
+corr_atm = lapply(lpd, function(mset){
+    MatCorPack(X, mset$conc_table, 
+               methods = c("pearson", "spearman", "kendall"))
+})
+
+## -------- save out -----------------------------------------------------------
+save(lpd, limma_list, corr_atm, file="../Rdata/lpd_precalc.rda")

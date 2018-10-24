@@ -1,5 +1,5 @@
-pkgs = c("dplyr", "reshape2", "stringr", "tidyr", "tibble", "data.table",
-         "Metabase", "readxl","sas7bdat")
+pkgs = c("dplyr", "reshape2", "stringr", "tidyr", "tibble",
+         "Metabase", "readxl","readr")
 for(pkg in pkgs){
     library(pkg, character.only = TRUE, warn.conflicts = FALSE, 
             quietly = TRUE, verbose = FALSE)
@@ -79,12 +79,16 @@ lpd$feature_data$Annotation = make.unique(lpd$feature_data$Annotation)
 featureNames(lpd) = lpd$feature_data$Annotation
 
 ## read additional sample data
-group_data <- read.sas7bdat("../raw_data/lipidomics_analytic_20180904.sas7bdat")
-group_data <- subset(group_data, CE != "NaN")
-group_data <- group_data[1:13]
-group_data$flipgroup <- factor(group_data$flipgroup)
-group_data$sample_id <- paste("Ghana", group_data$wid)
-rownames(group_data) <- group_data$sample_id
+group_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17]
+group_data = group_data %>%
+    mutate(
+        flipgroup = factor(flipgroup),
+        sample_id = paste("Ghana", wid),
+        sex_updated = factor(sex_updated)
+    ) %>%
+    as.data.frame %>%
+    column_to_rownames("sample_id")
+
 
 lpd = subset_samples(lpd, rownames(group_data))
 lpd$sample_table = sample_table(cbind(group_data, lpd$sample_table))
