@@ -37,6 +37,7 @@ lpd$feature_data$molwt = molwt
 lpd_mol = transform_by_sample(lpd, function(x) x/molwt)
 lpd_eod = summarize_EOD(lpd_mol, name = "Annotation", class = "class")
 lpd_acl = summarize_ACL(lpd_mol, name = "Annotation", class = "class")
+lpd_odd = summarize_odd_chain(lpd_mol, name = "Annotation", class="class")
 lpd_ratio = summarize_lipid_ratios(lpd_mol, name = "Annotation", class = "class")
 lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/LPC", "CE/TG"))
 featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
@@ -52,13 +53,14 @@ pe_plasmalogen = subset_features(lpd, grepl("^PE", featureNames(lpd)) & grepl("p
 pc_plasmalogen = colSums(pc_plasmalogen$conc_table)
 pe_plasmalogen = colSums(pe_plasmalogen$conc_table)
 lpd_ratio$conc_table = conc_table(
-    rbind(lpd_ratio$conc_table, pc_plasmalogen, pe_plsamalogen))
+    rbind(lpd_ratio$conc_table, pc_plasmalogen, pe_plasmalogen))
 
 lpd = list(
     class = lpd_class,
     species = lpd_prop,
     acl = lpd_acl,
     eod = lpd_eod,
+    "odd chain" = lpd_odd,
     ratios = lpd_ratio
 )
 
