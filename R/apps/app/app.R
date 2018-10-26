@@ -1,5 +1,5 @@
 pkgs = c('dplyr','stringr','reshape2','tibble', 'plotly', 'DT', 'Metabase', "shiny", 
-         "shinydashboard")
+         "shinydashboard", "ggsci")
 for(pkg in pkgs){
     library(pkg, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, 
             character.only=TRUE)
@@ -96,15 +96,18 @@ ui <- dashboardPage(
                         width = 6,
                         box(width = NULL,
                             column(
-                                width = 6,
+                                width = 5,
                                 selectInput("zscore_var", "Select a Z score variable:",
                                             choices = c("waz18", "laz18", "wlz18", "hcz18"),
-                                            selected = "waz18")
-                            ),
+                                            selected = "waz18")),
                             column(
-                                width = 6,
+                                width = 5,
                                 numericInput("zscore_cutoff", "Input a Z score cutoff:",
-                                             min = -2, max = 2, step = 0.1, value = -1.9)
+                                             min = -2, max = 2, step = 0.1, value = -1.9)),
+                            column(
+                                width = 2,
+                                checkboxInput("zscore_show_points", "Show Points",
+                                              value = TRUE)
                             )),
                         box(width = NULL,
                             plotlyOutput("lpd_zscore_boxplot")),
@@ -245,8 +248,21 @@ server <- function(input, output) {
     
     output$lpd_zscore_boxplot = renderPlotly({
         mset = zscore_mset()
-        plot_boxplot(mset, x = "zscore", feature = zscore_selector(), jitter = 0.2, 
-                     point.size=1.5)
+        df = data.frame(
+            feature = mset$conc_table[zscore_selector(),],
+            zscore = mset$sample_table$zscore
+        )
+        p = ggplot(df, aes(x=zscore, y=feature))
+        if (input$zscore_show_points) {
+            p = p + geom_boxplot() +
+                geom_point(position = position_jitter(width = 0.2), alpha = 0.7, 
+                           shape = 21, color = "white", fill = "black", size = 2.5)
+        } else {
+            p = p + geom_boxplot(aes(fill=zscore)) +
+                scale_fill_lancet()
+        }
+        p = p + theme_bw() +
+            theme(legend.position = "none")
     })
     
     ## Histograme
