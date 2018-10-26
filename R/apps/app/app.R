@@ -12,6 +12,12 @@ ui <- dashboardPage(
     header = dashboardHeader(title = "Ghana Study"),
     sidebar = dashboardSidebar(
         
+        ## A home button
+        sidebarMenu(
+            menuItem("Home", icon = icon("home"), newtab = FALSE,
+                     href="http://www.chenghaozhu.net/studies/ghana/")
+        ),
+        
         ## input
         selectInput("level", "Select Lipid Level:", 
                     choices = names(lpd), selected = "class"),
@@ -83,7 +89,8 @@ ui <- dashboardPage(
                     column(
                         width = 6,
                         box(width = NULL,
-                            DT::dataTableOutput("lpd_zscore_dt"), height = "100%")
+                            DT::dataTableOutput("lpd_zscore_dt"), height = "100%"),
+                        uiOutput("zscore_volcano_ui")
                     ),
                     column(
                         width = 6,
@@ -100,7 +107,8 @@ ui <- dashboardPage(
                                              min = -2, max = 2, step = 0.1, value = -1.9)
                             )),
                         box(width = NULL,
-                            plotlyOutput("lpd_zscore_boxplot"))
+                            plotlyOutput("lpd_zscore_boxplot")),
+                        uiOutput("zscore_hist_ui")
                     )
                 )
             )
@@ -209,12 +217,15 @@ server <- function(input, output) {
         mset
     })
     
-    zscore_limma_dt = reactive({
-        
+    zscore_limma = reactive({
         mset = zscore_mset()
-        
         design = model.matrix(~zscore + 1, data = as(mset$sample_table, "data.frame"))
-        mSet_limma(mset, design, coef = 2, p.value = 2) %>%
+        mSet_limma(mset, design, coef = 2, p.value = 2) 
+    })
+    
+    output$lpd_zscore_dt = DT::renderDataTable(
+        
+        zscore_limma() %>%
             rownames_to_column("Feature") %>%
             arrange(pvalue) %>%
             mutate(baseMean = round(baseMean, 3),
@@ -222,23 +233,54 @@ server <- function(input, output) {
                    stat     = round(stat, 3),
                    pvalue   = round(pvalue, 3),
                    padj     = round(padj, 3)) %>%
-            column_to_rownames("Feature")
+            column_to_rownames("Feature"),
         
-    })
-    
-    output$lpd_zscore_dt = DT::renderDataTable(
-        zscore_limma_dt(),
         selection = list(mode = "single", selected = 1),
         server=T
     )
     
     zscore_selector = reactive({
-        rownames(zscore_limma_dt())[input$lpd_zscore_dt_rows_selected]
+        rownames(zscore_limma())[input$lpd_zscore_dt_rows_selected]
     })
     
     output$lpd_zscore_boxplot = renderPlotly({
         mset = zscore_mset()
-        plot_boxplot(mset, x = "zscore", feature = zscore_selector(), jitter = 0.2)
+        plot_boxplot(mset, x = "zscore", feature = zscore_selector(), jitter = 0.2, 
+                     point.size=1.5)
+    })
+    
+    ## Histograme
+    output$zscore_hist = renderPlotly({
+        if(input$level != "species") {
+            return()
+        }
+        zscore_limma() %>%
+            ggplot(aes(pvalue)) +
+            geom_histogram(bins = 40, color = "white") +
+            theme_bw()
+    })
+    
+    output$zscore_hist_ui = renderUI({
+        if(input$level != "species") return()
+        box(width=NULL,
+            plotlyOutput("zscore_hist"))
+    })
+    
+    ## Volcano plot
+    output$zscore_volcano = renderPlotly({
+        if(input$level != "species") return()
+        zscore_limma() %>%
+            rownames_to_column("feature") %>%
+            ggplot(aes(logFC, -log(pvalue))) +
+            geom_point(aes(feature = feature), color = "gray19", alpha=0.5) +
+            geom_hline(yintercept = 4, linetype="dashed", color="firebrick") +
+            theme_bw()
+    })
+    
+    output$zscore_volcano_ui = renderUI({
+        if(input$level != "species") return()
+        box(width=NULL,
+            plotlyOutput("zscore_volcano"))
     })
     
 }
