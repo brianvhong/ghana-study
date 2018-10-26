@@ -23,7 +23,8 @@ ui <- dashboardPage(
         sidebarMenu(
             id = "sidebar",
             menuItem("Boxplot", tabName = "lpd_boxplot"),
-            menuItem("vs Anthropometric", tabName = "lpd_atm")
+            menuItem("vs Anthropometric", tabName = "lpd_atm"),
+            menuItem("Categorial Z scores", tabName = "lpd_zscore")
         )
         
     ),
@@ -72,6 +73,34 @@ ui <- dashboardPage(
                                         choices = c("flipgroup", "sex_updated"))),
                         box(width = NULL,
                             plotlyOutput("lpd_atm_scatter"))
+                    )
+                )
+            ),
+            ## Categorical Z score test page layout
+            tabItem(
+                tabName = "lpd_zscore",
+                fluidRow(
+                    column(
+                        width = 6,
+                        box(width = NULL,
+                            DT::dataTableOutput("lpd_zscore_dt"), height = "100%")
+                    ),
+                    column(
+                        width = 6,
+                        box(width = NULL,
+                            column(
+                                width = 6,
+                                selectInput("zscore_var", "Select a Z score variable:",
+                                            choices = c("waz18", "laz18", "wlz18", "hcz18"),
+                                            selected = "waz18")
+                            ),
+                            column(
+                                width = 6,
+                                numericInput("zscore_cutoff", "Input a Z score cutoff:",
+                                             min = -2, max = 2, step = 0.1, value = -1.9)
+                            )),
+                        box(width = NULL,
+                            plotlyOutput("lpd_zscore_boxplot"))
                     )
                 )
             )
@@ -169,6 +198,49 @@ server <- function(input, output) {
             theme_bw()
     })
 
+## -------- Categorical Z Scores -----------------------------------------------
+    
+    zscore_mset = reactive({
+        mset = lpd[[input$level]]
+        zscore = mset$sample_table[,input$zscore_var]
+        zscore = ifelse(zscore <= input$zscore_cutoff, "Low", "High")  
+        zscore = factor(zscore, levels = c("Low", "High"))
+        mset$sample_table$zscore = zscore
+        mset
+    })
+    
+    zscore_limma_dt = reactive({
+        
+        mset = zscore_mset()
+        
+        design = model.matrix(~zscore + 1, data = as(mset$sample_table, "data.frame"))
+        mSet_limma(mset, design, coef = 2, p.value = 2) %>%
+            rownames_to_column("Feature") %>%
+            arrange(pvalue) %>%
+            mutate(baseMean = round(baseMean, 3),
+                   logFC    = round(logFC, 3),
+                   stat     = round(stat, 3),
+                   pvalue   = round(pvalue, 3),
+                   padj     = round(padj, 3)) %>%
+            column_to_rownames("Feature")
+        
+    })
+    
+    output$lpd_zscore_dt = DT::renderDataTable(
+        zscore_limma_dt(),
+        selection = list(mode = "single", selected = 1),
+        server=T
+    )
+    
+    zscore_selector = reactive({
+        rownames(zscore_limma_dt())[input$lpd_zscore_dt_rows_selected]
+    })
+    
+    output$lpd_zscore_boxplot = renderPlotly({
+        mset = zscore_mset()
+        plot_boxplot(mset, x = "zscore", feature = zscore_selector(), jitter = 0.2)
+    })
+    
 }
 
 shinyApp(ui = ui, server = server)

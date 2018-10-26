@@ -42,6 +42,18 @@ lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/L
 featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
 featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
 
+lpd_plasmalogen = subset_features(lpd, grepl("p$", featureNames(lpd)))
+lpd_plasmalogen = colSums(lpd_plasmalogen$conc_table)
+lpd_ratio$conc_table = conc_table(rbind(lpd_ratio$conc_table, lpd_plasmalogen))
+
+pc_plasmalogen = subset_features(lpd, grepl("^PC", featureNames(lpd)) & grepl("p$", featureNames(lpd)))
+pe_plasmalogen = subset_features(lpd, grepl("^PE", featureNames(lpd)) & grepl("p$", featureNames(lpd)))
+
+pc_plasmalogen = colSums(pc_plasmalogen$conc_table)
+pe_plasmalogen = colSums(pe_plasmalogen$conc_table)
+lpd_ratio$conc_table = conc_table(
+    rbind(lpd_ratio$conc_table, pc_plasmalogen, pe_plsamalogen))
+
 lpd = list(
     class = lpd_class,
     species = lpd_prop,
