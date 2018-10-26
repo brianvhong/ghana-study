@@ -1,5 +1,5 @@
 pkgs = c('dplyr','stringr','reshape2','tibble', 'plotly', 'DT', 'Metabase', "shiny", 
-         "shinydashboard")
+         "shinydashboard", "stats")
 for(pkg in pkgs){
     library(pkg, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, 
             character.only=TRUE)
@@ -11,8 +11,18 @@ ui <- dashboardPage(
     
     header = dashboardHeader(title = "Ghana Study"),
     sidebar = dashboardSidebar(
-        selectInput("level", "Select from here", 
-                    choices = names(lpd), selected = "class")
+        sidebarMenu(
+            id = "sidebar",
+            menuItem(
+                icon = icon("caret-right"), "Lipidome", 
+                menuSubItem("Boxplot", tabName = "lpd_boxplot"),
+                menuSubItem("PCA", tabName = "lpd_hist")
+                selectInput("level", "Select from here", 
+                    choices = names(lpd), selected = "class"),
+                sliderInput("p value", "Select",
+                    min = 0, max = 1, value = 0.1, step = 0.5)
+            )
+        )
     ),
     
     body = dashboardBody(
@@ -81,6 +91,25 @@ server <- function(input, output) {
        rownames(stats_table())[input$statTable_rows_selected]
        
    })
+   
+   data = t(lpd$species$conc_table)
+   
+   log.data = log(data)
+   data.pca = prcomp(log.data,
+                     center = TRUE,
+                     scale. = TRUE)
+   g = data.frame(
+       PC1 = data.pca$x[, 1],
+       PC2 = data.pca$x[, 2],
+       Treatment = lpd$species$sample_table$flipgroup,
+       wid = lpd$species$sample_table$wid
+   ) %>% 
+       ggplot(aes(x = PC1, y = PC2)) +
+       geom_point(aes(color = Treatment))
+   g
+   
+   
+   
 }
 
 shinyApp(ui = ui, server = server)
