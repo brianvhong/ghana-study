@@ -11,28 +11,28 @@ ui <- dashboardPage(
     
     header = dashboardHeader(title = "Ghana Study"),
     sidebar = dashboardSidebar(
-        
         ## A home button
         sidebarMenu(
             menuItem("Home", icon = icon("home"), newtab = FALSE,
                      href="http://www.chenghaozhu.net/studies/ghana/")
         ),
-        
         ## input
         selectInput("level", "Select Lipid Level:", 
                     choices = names(lpd), selected = "class"),
         selectInput("corr_method", "Select Correlation Method:",
                     choices = names(corr_atm$class),
                     selected = names(corr_atm$class)[1]),
-        
         ## side bar menue
         sidebarMenu(
             id = "sidebar",
             menuItem("Boxplot", tabName = "lpd_boxplot"),
+            menuItem("PCA", tabName = "lpd_hist"),
             menuItem("vs Anthropometric", tabName = "lpd_atm"),
             menuItem("Categorial Z scores", tabName = "lpd_zscore")
         )
-        
+        ## Move the following to body 
+        # sliderInput("p value", "Select",
+        #    min = 0, max = 1, value = 0.1, step = 0.5)      
     ),
     
     body = dashboardBody(
@@ -166,8 +166,26 @@ server <- function(input, output) {
     
     lpd_boxplot_selector = reactive({
        rownames(lpd_limma())[input$lpd_statTable_rows_selected]
-       
-    })
+     })
+  
+  # PCA NEEDS TO BE FIXED
+  
+   # data = t(lpd$species$conc_table)
+   
+   # log.data = log(data)
+   # data.pca = prcomp(log.data,
+   #                   center = TRUE,
+   #                   scale. = TRUE)
+   # g = data.frame(
+   #     PC1 = data.pca$x[, 1],
+   #     PC2 = data.pca$x[, 2],
+   #     Treatment = lpd$species$sample_table$flipgroup,
+   #     wid = lpd$species$sample_table$wid
+   # ) %>% 
+   #     ggplot(aes(x = PC1, y = PC2)) +
+   #     geom_point(aes(color = Treatment))
+   # g
+
 ## -------- vs anthropometric data ---------------------------------------------
     lpd_atm_table = reactive({
         corr_atm[[input$level]][[input$corr_method]][[input$lpd_atm]] %>%
@@ -298,7 +316,6 @@ server <- function(input, output) {
         box(width=NULL,
             plotlyOutput("zscore_volcano"))
     })
-    
 }
 
 shinyApp(ui = ui, server = server)
