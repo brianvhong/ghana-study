@@ -26,13 +26,10 @@ ui <- dashboardPage(
         sidebarMenu(
             id = "sidebar",
             menuItem("Boxplot", tabName = "lpd_boxplot"),
-            menuItem("PCA", tabName = "lpd_hist"),
+            menuItem("PCA", tabName = "lpd_pca"),
             menuItem("vs Anthropometric", tabName = "lpd_atm"),
             menuItem("Categorial Z scores", tabName = "lpd_zscore")
         )
-        ## Move the following to body 
-        # sliderInput("p value", "Select",
-        #    min = 0, max = 1, value = 0.1, step = 0.5)      
     ),
     
     body = dashboardBody(
@@ -57,6 +54,23 @@ ui <- dashboardPage(
                         width = 6,
                         box(width = NULL,
                             plotlyOutput("lpd_boxPlot"))
+                    )
+                )
+            ),
+            ## PCA page layout
+            tabItem(
+                tabName = "lpd_pca",
+                fluidRow(
+                    column(
+                        width = 6,
+                        box(width = NULL,
+                            plotlyOutput("lpd_pca"))
+                    ),
+                    column(
+                        width = 6,
+                        box(width = NULL,
+                            sliderInput("pca_cutoff", "Select a p value cutoff: ",
+                                        min = 0, max = 1, value = 0.1, step = 0.05))
                     )
                 )
             ),
@@ -163,28 +177,33 @@ server <- function(input, output) {
        selection = list(mode = "single", selected = 1),
        server=T
     )
-    
+
+## -------- PCA ----------------------------------------------------------------    
     lpd_boxplot_selector = reactive({
        rownames(lpd_limma())[input$lpd_statTable_rows_selected]
      })
-  
-  # PCA NEEDS TO BE FIXED
-  
-   # data = t(lpd$species$conc_table)
-   
-   # log.data = log(data)
-   # data.pca = prcomp(log.data,
-   #                   center = TRUE,
-   #                   scale. = TRUE)
-   # g = data.frame(
-   #     PC1 = data.pca$x[, 1],
-   #     PC2 = data.pca$x[, 2],
-   #     Treatment = lpd$species$sample_table$flipgroup,
-   #     wid = lpd$species$sample_table$wid
-   # ) %>% 
-   #     ggplot(aes(x = PC1, y = PC2)) +
-   #     geom_point(aes(color = Treatment))
-   # g
+    
+    output$lpd_pca = renderPlotly({
+        
+        data = t(lpd$species$conc_table[limma_list$species$pvalue <= input$pca_cutoff,])
+        log.data = log(data)
+        data.pca = prcomp(log.data,
+                          center = TRUE,
+                          scale. = TRUE)
+        
+        g = data.frame(
+            PC1 = data.pca$x[, 1],
+            PC2 = data.pca$x[, 2],
+            treatment = lpd$species$sample_table$flipgroup,
+            wid = lpd$species$sample_table$wid
+        ) %>%
+            ggplot(aes(x = PC1, y = PC2)) +
+            geom_point(aes(color = treatment,wid = wid)) +
+            theme_bw()
+        
+        ggplotly(g)
+        
+    })
 
 ## -------- vs anthropometric data ---------------------------------------------
     lpd_atm_table = reactive({
