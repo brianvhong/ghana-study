@@ -43,17 +43,41 @@ lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/L
 featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
 featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
 
+## Plasmalogen
 lpd_plasmalogen = subset_features(lpd, grepl("p$", featureNames(lpd)))
 lpd_plasmalogen = colSums(lpd_plasmalogen$conc_table)
-lpd_ratio$conc_table = conc_table(rbind(lpd_ratio$conc_table, lpd_plasmalogen))
 
 pc_plasmalogen = subset_features(lpd, grepl("^PC", featureNames(lpd)) & grepl("p$", featureNames(lpd)))
 pe_plasmalogen = subset_features(lpd, grepl("^PE", featureNames(lpd)) & grepl("p$", featureNames(lpd)))
 
 pc_plasmalogen = colSums(pc_plasmalogen$conc_table)
 pe_plasmalogen = colSums(pe_plasmalogen$conc_table)
+
 lpd_ratio$conc_table = conc_table(
-    rbind(lpd_ratio$conc_table, pc_plasmalogen, pe_plasmalogen))
+    rbind(lpd_ratio$conc_table, 
+          "total Plasmalogen" = lpd_plasmalogen,
+          "PC Plasmalogen" = pc_plasmalogen, 
+          "PE Plasmalogen" = pe_plasmalogen))
+
+## precursors
+lpd_ratio$conc_table = conc_table(
+    rbind(
+        lpd_ratio$conc_table,
+        "CE 20:3/18:3 ratio" = lpd$conc_table["CE 20:3",] / lpd$conc_table["CE 18:3",],
+        "FA 20:3/18:3 ratio" = lpd$conc_table["FA 20:3.1",] / lpd$conc_table["FA 18:3",],
+        "CE 20:4/18:2 ratio" = lpd$conc_table["CE 20:4",] / lpd$conc_table["CE 18:2",],
+        "FA 20:4/18:2 ratio" = lpd$conc_table["FA 20:4",] / lpd$conc_table["FA 18:2",],
+        "FA 24:1/24:0 ratio" = lpd$conc_table["FA 24:1",] / lpd$conc_table["FA 24:0",],
+        "FA 20:2/20:1 ratio" = lpd$conc_table["FA 20:2",] / lpd$conc_table["FA 20:1",],
+        "FA 20:1/20:0 ratio" = lpd$conc_table["FA 20:1",] / lpd$conc_table["FA 20:0",],
+        "FA 20:2/18:2 ratio" = lpd$conc_table["FA 20:2",] / lpd$conc_table["FA 18:2",],
+        "Cer % odd" = lpd_odd$conc_table["Cer",] / summarize_features(lpd_mol, "class")$conc_table["Cer",],
+        "SM % odd" = lpd_odd$conc_table["SM",] / summarize_features(lpd_mol, "class")$conc_table["SM",],
+        "PC % plasmalogen" = lpd_ratio$conc_table["PC Plasmalogen",] / lpd_class$conc_table["PC",],
+        "PE % plasmalogen" = lpd_ratio$conc_table["PE Plasmalogen",] / lpd_class$conc_table["PE",],
+        "PL % plasmalogen" = lpd_ratio$conc_table["total Plasmalogen",] / (lpd_class$conc_table["PC",] + lpd_class$conc_table["PE",])
+    )
+)
 
 lpd = list(
     class = lpd_class,
