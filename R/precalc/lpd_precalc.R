@@ -97,7 +97,7 @@ limma_list = lapply(lpd, function(data){
 
 ## -------- correlation --------------------------------------------------------
 ## calculate correlation against anthropometric values.
-X = t(lpd$class$sample_table[,c("waz18", "laz18", "wlz18", "hcz18", "momht")])
+X = t(lpd$class$sample_table[,c("waz18", "laz18", "wlz18", "hcz18", "momht", "chol_efflux")])
 corr_atm = lapply(lpd, function(mset){
     MatCorPack(X, mset$conc_table, 
                methods = c("pearson", "spearman", "kendall"))

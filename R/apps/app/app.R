@@ -28,7 +28,8 @@ ui <- dashboardPage(
             menuItem("Boxplot", tabName = "lpd_boxplot"),
             menuItem("PCA", tabName = "lpd_pca"),
             menuItem("vs Anthropometric", tabName = "lpd_atm"),
-            menuItem("Categorial Z scores", tabName = "lpd_zscore")
+            menuItem("Categorial Z scores", tabName = "lpd_zscore"),
+            menuItem("Chol Efflux Boxplot", tabName = "fct_boxplot")
         )
     ),
     
@@ -126,6 +127,21 @@ ui <- dashboardPage(
                         box(width = NULL,
                             plotlyOutput("lpd_zscore_boxplot")),
                         uiOutput("zscore_hist_ui")
+                    )
+                )
+            ),
+            tabItem(
+                tabName = "fct_boxplot",
+                fluidRow(
+                    column(
+                        width = 6,
+                        box(width = NULL,
+                            plotlyOutput("fct_boxplot"))
+                    ),
+                    column(
+                        width = 6,
+                        box(width = NULL,
+                            verbatimTextOutput("fct_stat"))
                     )
                 )
             )
@@ -334,6 +350,24 @@ server <- function(input, output) {
         if(input$level != "species") return()
         box(width=NULL,
             plotlyOutput("zscore_volcano"))
+    })
+## -------- fct_boxplot --------------------------------------------------------
+    output$fct_boxplot = renderPlotly({
+        lpd$class$sample_table %>%
+            select(chol_efflux, wid, flipgroup) %>%
+            ggplot(aes(flipgroup, chol_efflux)) +
+            geom_boxplot() +
+            geom_point(aes(wid = wid), position = position_jitter(width = 0.2), 
+                       shape = 21, color = "white", fill = "black", alpha = 0.75,
+                       size = 2.5) +
+            theme_bw()
+    })
+    
+    output$fct_stat = renderText({
+        result = t.test(chol_efflux ~ flipgroup, 
+               data = as(lpd$class$sample_table, "data.frame")) %>%
+            print %>% capture.output()
+        paste(result, collapse="\n")
     })
 }
 
