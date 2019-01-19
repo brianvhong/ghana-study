@@ -7,8 +7,9 @@ for(pkg in pkgs){
 
 load('../../Rdata/lpd_precalc.rda')
 source("global.R")
+
 for (file in list.files("ui", full.names = TRUE)) {
-    source(file)
+    source(file, local = TRUE)
 }
 
 ui = bs4DashPage(
