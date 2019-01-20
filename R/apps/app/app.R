@@ -6,7 +6,7 @@ for(pkg in pkgs){
 }
 
 load('../../Rdata/lpd_precalc.rda')
-source("global.R")
+source("global.R", local = TRUE)
 
 for (file in list.files("ui", full.names = TRUE)) {
     source(file, local = TRUE)
