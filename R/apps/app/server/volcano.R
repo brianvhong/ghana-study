@@ -1,6 +1,6 @@
 ## waz
 p_vol_waz = reactive({
-    plotVolcano("waz18", input$var_add_vp, input$corr_method, input$show_all_av)
+    plotVolcano("waz18", input$var_add_vp, input$corr_method, input$vp_label_type)
 })
 
 output$vol_waz = renderPlot({
@@ -19,7 +19,7 @@ output$waz_downloader = downloadHandler(
 
 ## laz
 p_vol_laz = reactive({
-    plotVolcano("laz18", input$var_add_vp, input$corr_method, input$show_all_av)
+    plotVolcano("laz18", input$var_add_vp, input$corr_method, input$vp_label_type)
 })
 
 output$vol_laz = renderPlot({
@@ -38,7 +38,7 @@ output$laz_downloader = downloadHandler(
 
 ## wlz
 p_vol_wlz = reactive({
-    plotVolcano("wlz18", input$var_add_vp, input$corr_method, input$show_all_av)
+    plotVolcano("wlz18", input$var_add_vp, input$corr_method, input$vp_label_type)
 })
 
 output$vol_wlz = renderPlot({
@@ -57,7 +57,7 @@ output$wlz_downloader = downloadHandler(
 
 ## hcz
 p_vol_hcz = reactive({
-    plotVolcano("hcz18", input$var_add_vp, input$corr_method, input$show_all_av)
+    plotVolcano("hcz18", input$var_add_vp, input$corr_method, input$vp_label_type)
 })
 
 output$vol_hcz = renderPlot({

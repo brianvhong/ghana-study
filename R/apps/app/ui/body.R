@@ -148,9 +148,19 @@ volcanoTab = bs4TabItem(
                 )
             ),
             tags$div(
-                class = "col-sm-4 d-inline-block",
-                checkboxInput("show_all_av", "Show labels with only |r| > 0.2",
-                              value = FALSE)
+                class = "col-sm-5 d-inline-block",
+                radioButtons(
+                    "vp_label_type", 
+                    "How would you like to add the label",
+                    choiceNames = c(
+                        "No label", 
+                        "|R| > 0.2",
+                        "P < 0.05",
+                        "|R| > 0.2 and P < 0.05"
+                    ),
+                    choiceValues = c("no", "r", "p", "both"),
+                    inline = TRUE
+                )
             )
         ),
         bs4Card(

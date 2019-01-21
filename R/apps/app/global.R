@@ -43,7 +43,7 @@ plotHistogram = function(data, title){
               plot.title = element_text(hjust = 0.5, size = rel(1.5)))
 }
 
-plotVolcano = function(zscore, var_add_vp, corr_method, show_all_av){
+plotVolcano = function(zscore, var_add_vp, corr_method, vp_label_type){
     data = corr_atm$species[[corr_method]][[zscore]]
     data$avgExp = rowMeans(lpd$species$conc_table)
     data$feature_type = "species"
@@ -67,14 +67,20 @@ plotVolcano = function(zscore, var_add_vp, corr_method, show_all_av){
                    color = "grey") +
         geom_hline(yintercept = -log10(0.05), linetype = "dashed",
                    color = "grey")
-    if(show_all_av) {
-        features_2_label = data$feature_type != "species" | !between(data$estimate, -0.2, 0.2)
-    } else {
-        features_2_label = !between(data$estimate, -0.2, 0.2)
+    
+    if(vp_label_type != "no") {
+        if(vp_label_type == "r") {
+            features_2_label = !between(data$estimate, -0.2, 0.2)
+        } else if(vp_label_type == "p") {
+            features_2_label = data$pval < 0.05
+        } else if (vp_label_type == "both") {
+            features_2_label = !between(data$estimate, -0.2, 0.2) & data$pval < 0.05
+        }
+        p = p + 
+            geom_text_repel(data = subset(data, features_2_label),
+                            aes(label = featureid), size = 4)       
     }
-    p = p + 
-        geom_text_repel(data = subset(data, features_2_label),
-                        aes(label = featureid), size = 4)   
+    
     if(is.null(var_add_vp)){
         p = p + geom_point(aes(alpha = avgExp), color = "navyblue")
     }else {
