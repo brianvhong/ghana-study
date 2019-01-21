@@ -43,21 +43,47 @@ plotHistogram = function(data, title){
               plot.title = element_text(hjust = 0.5, size = rel(1.5)))
 }
 
-plotVolcano = function(data, title){
+plotVolcano = function(zscore, var_add_vp, corr_method, show_all_av){
+    data = corr_atm$species[[corr_method]][[zscore]]
     data$avgExp = rowMeans(lpd$species$conc_table)
+    data$feature_type = "species"
     data = rownames_to_column(data, "featureid")
-    ggplot(data, aes(x = estimate, y = -log10(pval))) +
+    
+    if(!is.null(var_add_vp)){
+        add_data = corr_atm[[var_add_vp]][[corr_method]][[zscore]]
+        add_data$avgExp = rowMeans(lpd[[var_add_vp]]$conc_table)
+        add_data$feature_type = var_add_vp
+        add_data = rownames_to_column(add_data, "featureid")
+        data = rbind(data, add_data)
+    }
+    
+    data$feature_type = factor(data$feature_type)
+    data$feature_type = relevel(data$feature_type, ref = "species")
+    
+    p = ggplot(data, aes(x = estimate, y = -log10(pval))) +
         geom_vline(xintercept = 0.2, linetype = "dashed",
                    color = "grey") +
         geom_vline(xintercept = -0.2, linetype = "dashed",
                    color = "grey") +
         geom_hline(yintercept = -log10(0.05), linetype = "dashed",
-                   color = "grey") +
-        geom_text_repel(data = subset(data, !between(estimate, -0.2, 0.2)),
-                        aes(label = featureid), size = 4) +
-        geom_point(aes(alpha = avgExp), color = "navyblue") +
+                   color = "grey")
+    if(show_all_av) {
+        features_2_label = data$feature_type != "species" | !between(data$estimate, -0.2, 0.2)
+    } else {
+        features_2_label = !between(data$estimate, -0.2, 0.2)
+    }
+    p = p + 
+        geom_text_repel(data = subset(data, features_2_label),
+                        aes(label = featureid), size = 4)   
+    if(is.null(var_add_vp)){
+        p = p + geom_point(aes(alpha = avgExp), color = "navyblue")
+    }else {
+        p = p + geom_point(aes(alpha = avgExp, color = feature_type)) +
+            scale_color_manual(values = c("navyblue", "firebrick"))
+    }
+    p = p +
         labs(x = "Correlation Coefficient",
-             title = title) +
+             title = glue("Lipid species {str_to_title(corr_method)}'s correlation vs {zscore}")) +
         guides(alpha = guide_legend(title = "Relative\nAbundance")) +
         theme_bw() +
         theme(
@@ -65,14 +91,6 @@ plotVolcano = function(data, title){
             axis.title = element_text(size = rel(1.25)),
             plot.title = element_text(hjust = 0.5, size = rel(1.5))
         )
+    p
 }
 
-addVar2Volcano = function(p, var_add_vp, corr_method, zscore){
-    add_data = corr_atm[[var_add_vp]][[corr_method]][[zscore]]
-    add_data$avgExp = rowMeans(lpd[[var_add_vp]]$conc_table)
-    add_data = rownames_to_column(add_data, "featureid")
-    p = p + 
-        geom_point(data = add_data, color = "firebrick") +
-        geom_text_repel(data = add_data, aes(label = featureid), size = 4)
-    return (p)
-}

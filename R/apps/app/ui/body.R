@@ -116,31 +116,61 @@ corrHistTab = bs4TabItem(
     
 )
 
+downloadForm = function(zscore){
+    type = gsub("(\\D{3})\\d{2}", "\\1", zscore)
+    tagList(
+        tags$div(
+            class = "col-sm-4 d-inline-block",
+            numericInput(glue("{type}_ht"), "Height", value = 6, width = "100%")
+        ),
+        tags$div(
+            class = "col-sm-4 d-inline-block",
+            numericInput(glue("{type}_wt"), "Width", value = 8, width = "100%")
+        ),
+        tags$div(
+            class = "col-sm-3 d-inline-block",
+            downloadButton(glue("{type}_downloader"))
+        )
+    )
+}
+
 volcanoTab = bs4TabItem(
     tabName = "corr_vol",
     fluidRow(
         bs4Card(
             width = 12,
-            checkboxGroupInput(
-                "var_add_vp", label = "Variables add to the plot (only select one)",
-                choices = names(corr_atm)[names(corr_atm) != "species"],
-                inline = TRUE
+            tags$div(
+                class = "col-sm-4 d-inline-block",
+                checkboxGroupInput(
+                    "var_add_vp", label = "Variables add to the plot (only select one)",
+                    choices = names(corr_atm)[names(corr_atm) != "species"],
+                    inline = TRUE
+                )
+            ),
+            tags$div(
+                class = "col-sm-4 d-inline-block",
+                checkboxInput("show_all_av", "Show labels with only |r| > 0.2",
+                              value = FALSE)
             )
         ),
         bs4Card(
             width = 6,
+            downloadForm("waz"),
             plotOutput("vol_waz")
         ),
         bs4Card(
             width = 6,
+            downloadForm("laz"),
             plotOutput("vol_laz")
         ),
         bs4Card(
             width = 6,
+            downloadForm("wlz"),
             plotOutput("vol_wlz")
         ),
         bs4Card(
             width = 6,
+            downloadForm("hcz"),
             plotOutput("vol_hcz")
         )
     )
