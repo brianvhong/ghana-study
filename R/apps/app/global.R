@@ -66,3 +66,13 @@ plotVolcano = function(data, title){
             plot.title = element_text(hjust = 0.5, size = rel(1.5))
         )
 }
+
+addVar2Volcano = function(p, var_add_vp, corr_method, zscore){
+    add_data = corr_atm[[var_add_vp]][[corr_method]][[zscore]]
+    add_data$avgExp = rowMeans(lpd[[var_add_vp]]$conc_table)
+    add_data = rownames_to_column(add_data, "featureid")
+    p = p + 
+        geom_point(data = add_data, color = "firebrick") +
+        geom_text_repel(data = add_data, aes(label = featureid), size = 4)
+    return (p)
+}

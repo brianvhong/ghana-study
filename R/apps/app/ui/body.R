@@ -35,16 +35,22 @@ corrTab = bs4TabItem(
     fluidRow(
         column(
             width = 6,
-            DT::dataTableOutput("lpd_atm_dt")
+            bs4Card(
+                width = 12,
+                DT::dataTableOutput("lpd_atm_dt")
+            )
         ),
         column(
             width = 6,
-            selectInput("lpd_atm", "Select a Anthropometric Variable",
-                        choices = names(corr_atm$class$pearson),
-                        selected = names(corr_atm$class$pearson)[1]),
-            selectInput("lpd_atm_color", "Select a variable to color it",
-                        choices = c("flipgroup", "sex_updated")),
-            plotlyOutput("lpd_atm_scatter")
+            bs4Card(
+                width = 12,
+                selectInput("lpd_atm", "Select a Anthropometric Variable",
+                            choices = names(corr_atm$class$pearson),
+                            selected = names(corr_atm$class$pearson)[1]),
+                selectInput("lpd_atm_color", "Select a variable to color it",
+                            choices = c("flipgroup", "sex_updated")),
+                plotlyOutput("lpd_atm_scatter")
+            )
         )
     )
 )
@@ -107,11 +113,20 @@ corrHistTab = bs4TabItem(
             plotOutput("hist_hcz")
         )
     )
+    
 )
 
 volcanoTab = bs4TabItem(
     tabName = "corr_vol",
     fluidRow(
+        bs4Card(
+            width = 12,
+            checkboxGroupInput(
+                "var_add_vp", label = "Variables add to the plot (only select one)",
+                choices = names(corr_atm)[names(corr_atm) != "species"],
+                inline = TRUE
+            )
+        ),
         bs4Card(
             width = 6,
             plotOutput("vol_waz")

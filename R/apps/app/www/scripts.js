@@ -5,7 +5,7 @@ function addMenuOnClickEvents() {
 
 // send event to R, will be available as input$menuItem
 function onMenuSelect(id) {
-  Shiny.setInputValue("menuItem", id, {priority: "event"});
+  Shiny.setInputValue("menuItem", {id:id}, {priority: "event"});
 }
 
-addMenuOnClickEvents();
+addMenuOnClickEvents()
