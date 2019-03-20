@@ -98,15 +98,14 @@ lpd$sample_table = sample_table(cbind(group_data, lpd$sample_table))
 ################################################################################
 
 chol_efflux = read_excel(
-    "../raw_data/Ghana HDL cholesterol efflux 11-5-18.xlsx",
-    sheet = 1,
-    range = "A1:J81"
+    "../raw_data/20190319 Ghana Study HDL 100ug J774 Cholesterol Efflux.xlsx",
+    sheet = "Final Results",
+    range = "A3:B81"
 ) %>%
-    mutate(`Subject IDs` = str_c("Ghana ", `Subject IDs`)) %>%
-    as.data.frame %>% column_to_rownames("Subject IDs")
-chol_efflux = chol_efflux[sampleNames(lpd),]
+    mutate(`Subject ID` = str_c("Ghana ", `Subject ID`)) %>%
+    as.data.frame %>% column_to_rownames("Subject ID")
 
-lpd$sample_table$chol_efflux = chol_efflux[,"% Cholesterol\r\nEfflux"]
+lpd$sample_table$chol_efflux = chol_efflux[sampleNames(lpd),]
 
 ## -------- save ---------------------------------------------------------------
 save(lpd, file = "hdl.rda")

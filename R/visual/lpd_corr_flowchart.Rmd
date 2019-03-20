@@ -1,0 +1,52 @@
+---
+title: "Lipidomics Correlation Flowchart"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pkgs = c("dplyr", "reshape2", "tibble", "glue", "Metabase", "grid", "Gmisc")
+for (pkg in pkgs) {
+    library(pkg,character.only = TRUE)
+}
+```
+
+```{r}
+load("../Rdata/lpd_precalc.rda")
+```
+
+```{r}
+grid.newpage()
+
+midx = 0.5
+leftx = 0.2
+midleftx = 0.4
+midrightx = 0.6
+rightx = 0.8
+width = 0.15
+height = 0.075
+gp = gpar(fill = "lightgrey")
+
+gety = function(order){
+    1 - order * 0.05
+}
+
+(pos = boxGrob(
+    "1735 features\npositive mode",
+    x = midleftx, y = gety(1), box_gp = gp, width = width, height = height
+))
+neg = boxGrob(
+    "603 features\nnegative mode", 
+    x = midleftx, y = gety(1), box_gp = gp, width = width, height = height
+)
+(pos2 = boxGrob(
+    "256 features",
+    x = midleftx, y = gety(2), box_gp = gp, width = width, height = height
+))
+connectGrob(pos, pos2, "v")
+```
+
+
