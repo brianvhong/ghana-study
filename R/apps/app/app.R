@@ -35,6 +35,9 @@ App = R6Class(
         # server
         server = function(input, output, session){
             sidebar = self$sidebarPanel$call()
+            observe({
+                self$bodyPanel$call(props = sidebar)
+            })
         }
     )
 )
@@ -42,23 +45,3 @@ App = R6Class(
 app = App$new()
 
 shinyApp(ui = app$ui(), server = app$server)
-
-# ui = bs4DashPage(
-#     sidebar_collapsed = FALSE,
-#     navbar = bs4DashNavbar(
-#         status = "white",
-#         "Ghana Study"
-#     ),
-#     sidebar = sidebar,
-#     body = body,
-#     controlbar = controlbar,
-#     footer = myFooter
-# )
-# 
-# server = function(input, output) {
-#     for (file in list.files("server", full.names = TRUE)) {
-#         source(file, local = TRUE)
-#     }
-# }
-
-
