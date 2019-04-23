@@ -1,26 +1,26 @@
-import::here(DataTable, .from = "../modules/DataTable.R")
-import::here(BoxPlot, .from = "../modules/BoxPlot.R")
+import::here(DataTable, .from="../modules/DataTable.R")
+import::here(BoxPlot, .from="../modules/BoxPlot.R")
 
-LpdBoxplotPage = R6Class(
-    "LpdBoxplotPage",
+SecBoxplotPage = R6Class(
+    "SecBoxplotPage",
     inherit = ShinyModule,
     public = list(
         # attributes
-        id = "lpd-boxplot",
+        id = "sec-boxplot",
         dataTable = NULL,
         boxPlot = NULL,
         
         # initializer
         initialize = function(){
-            self$dataTable = DataTable$new("table", parent_id = self$id)
-            self$boxPlot = BoxPlot$new("boxplot", parent_id = self$id)
+            self$dataTable = DataTable$new(id = "table", parent_id = self$id)
+            self$boxPlot = BoxPlot$new(id = "boxplot", parent_id = self$id)
         },
         
         # UI
         ui = function(){
             ns = NS(self$id)
             tabItem(
-                tabName = "lpd-boxplot",
+                tabName = "sec-boxplot",
                 div(
                     class="col-sm-6",
                     box(
@@ -41,34 +41,29 @@ LpdBoxplotPage = R6Class(
         },
         
         # server
-        #' @props lpd-level, string
         server = function(input, output, session, props){
             states = reactiveValues(
                 rows_selected = NULL
             )
-            observeEvent(props$`lpd-level`, {
-                if(!is.null(props$`lpd-level`)) {
-                    tableData = self$dataTable$call(props = reactiveValues(
-                        data = data$lm$lpd[[props$`lpd-level`]]
-                    ))
-                    observeEvent(tableData$rows_selected, {
-                        states$rows_selected = tableData$rows_selected
-                    })
-                }
+            tableData = self$dataTable$call(props = reactiveValues(
+                data = data$lm$sec
+            ))
+            observeEvent(tableData$rows_selected, {
+                states$rows_selected = tableData$rows_selected
             })
-                
             observeEvent(states$rows_selected, {
                 if(!is.null(states$rows_selected)){
-                    lpd = data$data$lpd
+                    # Boxplot
+                    sec = data$data$sec
                     data = data.frame(
-                        x = lpd$class$sample_table$flipgroup,
-                        y = as.numeric(lpd[[props$`lpd-level`]]$conc_table[states$rows_selected,]),
-                        wid = lpd$class$sample_table$wid,
-                        waz = lpd$class$sample_table$waz18,
-                        laz = lpd$class$sample_table$laz18,
-                        wlz = lpd$class$sample_table$wlz18,
-                        hcz = lpd$class$sample_table$hcz18,
-                        chole_efflux =lpd$class$sample_table$chol_efflux
+                        x = sec$sample_table$flipgroup,
+                        y = as.numeric(sec$conc_table[states$rows_selected,]),
+                        wid = sec$sample_table$wid,
+                        waz = sec$sample_table$waz18,
+                        laz = sec$sample_table$laz18,
+                        wlz = sec$sample_table$wlz18,
+                        hcz = sec$sample_table$hcz18,
+                        chole_efflux = sec$sample_table$chol_efflux
                     )
                     args = list(
                         x = "x", y = "y", wid = "wid", waz = "waz",
@@ -77,7 +72,7 @@ LpdBoxplotPage = R6Class(
                     )    
                     labs = list(
                         x = "", y = "", 
-                        title = featureNames(lpd[[props$`lpd-level`]])[states$rows_selected]
+                        title = featureNames(sec)[states$rows_selected]
                     )
                     self$boxPlot$call(props = reactiveValues(
                         data = data,
@@ -89,7 +84,7 @@ LpdBoxplotPage = R6Class(
         },
         
         # call
-        call = function(input, output, session, props) {
+        call = function(input, output, session, props){
             callModule(self$server, self$id, props)
         }
     )

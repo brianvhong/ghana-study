@@ -2,6 +2,8 @@ import::here(LpdBoxplotPage, .from="../pages/LpdBoxplotPage.R")
 import::here(CliBoxplotPage, .from="../pages/CliBoxplotPage.R")
 import::here(PCAPage, .from="../pages/PCAPage.R")
 import::here(LpdAtmPage, .from="../pages/LpdAtmPage.R")
+import::here(SecBoxplotPage, .from="../pages/SecBoxplotPage.R")
+import::here(ChromatogramPage, .from="../pages/ChromatogramPage.R")
 
 BodyPanel = R6Class(
     "BodyPanel",
@@ -15,6 +17,8 @@ BodyPanel = R6Class(
         zscorePage = NULL,
         histogramPage = NULL,
         corrVolcanoPage = NULL,
+        secBoxplotPage = NULL,
+        chromPage = NULL,
             
         # initializer
         initialize = function(){
@@ -22,6 +26,8 @@ BodyPanel = R6Class(
             self$cliBoxplotPage = CliBoxplotPage$new()
             self$pcaPage = PCAPage$new()
             self$lpdAtmPage = LpdAtmPage$new()
+            self$secBoxplotPage = SecBoxplotPage$new()
+            self$chromPage = ChromatogramPage$new()
         },
         
         # UI
@@ -34,7 +40,9 @@ BodyPanel = R6Class(
                         self$lpdBoxplotPage$ui(),
                         self$cliBoxplotPage$ui(),
                         self$lpdAtmPage$ui(),
-                        self$pcaPage$ui()
+                        self$pcaPage$ui(),
+                        self$secBoxplotPage$ui(),
+                        self$chromPage$ui()
                     )
                 )
             )
@@ -48,13 +56,17 @@ BodyPanel = R6Class(
         server = function(input, output, session, props){
             observe({
                 if(props$tabs == "lpd-boxplot"){
-                    self$lpdBoxplotPage$call(props = props)   
+                    self$lpdBoxplotPage$call(props = props)  
                 } else if (props$tabs == "cli-boxplot") {
                     self$cliBoxplotPage$call()
                 } else if (props$tabs == "lpd-atm") {
-                    self$lpdAtmPage$call(props = props)   
+                     self$lpdAtmPage$call(props = props)   
                 } else if (props$tabs == "lpd-pca") {
                     self$pcaPage$call()
+                } else if (props$tabs == "sec-boxplot") {
+                    self$secBoxplotPage$call(props = props)
+                } else if (props$tabs == "sec-chrom") {
+                    self$chromPage$call()
                 }
             })
         },

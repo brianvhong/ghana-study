@@ -2,7 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-pin
 raw_data
-description
-"*\.DS_Store$"
+^.DS_Store$

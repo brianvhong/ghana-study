@@ -91,9 +91,11 @@ lpd = list(
 ## -------- linear model -------------------------------------------------------
 design = model.matrix(data = as(lpd_class$sample_table, "data.frame"), 
                       ~flipgroup + 1)
-limma_list = lapply(lpd, function(data){
-        mSet_limma(data, design, coef = 2, p.value = 2)
+lm_lpd = lapply(lpd, function(data){
+        mSet_limma(data, design, coef = 2)
 })
+
+lm_sec = mSet_limma(sec, design, coef = 2)
 
 ## -------- correlation --------------------------------------------------------
 ## calculate correlation against anthropometric values.
@@ -104,4 +106,22 @@ corr_atm = lapply(lpd, function(mset){
 })
 
 ## -------- save out -----------------------------------------------------------
-save(lpd, limma_list, corr_atm, file="../Rdata/lpd_precalc.rda")
+
+data = list(
+    data = list(
+        lpd = lpd,
+        sec = sec
+    ),
+    lm = list(
+        lpd = lm_lpd,
+        sec = lm_sec
+    ),
+    corr = list(
+        lpd = list(
+            atm = corr_atm
+        )
+    ),
+    chr = chr
+)
+
+save(data, file="../Rdata/lpd_precalc.rda")

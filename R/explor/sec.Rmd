@@ -1,0 +1,100 @@
+---
+title: "SEC Analaysis Explore"
+output: html_document
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, error = FALSE)
+```
+
+```{r packages}
+pkgs = c("dplyr", "stringr", "reshape2", "tidyr", "tibble", "ggplot2", "plotly",
+         "zeallot")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only = TRUE))
+}
+theme_set(theme_bw())
+```
+
+```{r}
+files = list.files("../../raw_data/ghana sec/", full.names = TRUE)
+sec_data = lapply(files, function(f){
+    data = read.table(
+        f, header = T, skip = 2, sep = "\t",
+        stringsAsFactors = FALSE
+    )
+    
+    uv = data[,1:2] %>% drop_na()
+    fr = data[,3:4] %>% drop_na()
+    bl = data[5:6] %>% drop_na()
+    
+    colnames(fr) = c("ml", "fraction")
+    colnames(bl) = c("ml", "mAU")
+    
+    fr$fraction = trimws(fr$fraction, which = "left")
+    
+    return(list(
+        uv = uv,
+        fr = fr,
+        bl = bl
+    ))
+})
+names(sec_data) = gsub(".+ghana-\\d*-(\\d{4})\\.asc", "ghana\\1", files)
+```
+
+
+```{r}
+selectInput(
+    "sample", "Select a sample",
+    choices = names(sec_data),
+    selected = names(sec_data)[1]
+)
+```
+
+
+```{r}
+renderPlotly({
+    uv = sec_data[[input$sample]]$uv
+    fr = sec_data[[input$sample]]$fr
+    fr$mAU = sapply(fr$ml, function(x){
+        fit = lm(mAU ~ ml + 1, data = uv[order(abs(uv$ml - x))[1:2],])
+        predict(fit, data.frame(ml = x))
+    })
+    
+    p = ggplot(uv) +
+        geom_line(aes(x = ml, y = mAU)) +
+        geom_segment(
+            data = fr, aes(x = ml, xend = ml, y = mAU, yend = 0),
+            linetype = "dashed"
+        )
+})
+```
+
+
+```{r}
+auc_data = sapply(sec_data, function(sample){
+    c(uv, fr, bl) %<-% sample
+    uv$mAU = uv$mAU - bl$mAU
+    fr = filter(fr, fraction %in% as.character(1:8))
+    uv$fraction = cut(uv$ml, breaks = fr$ml, labels = as.character(fr$fraction[-nrow(fr)]))
+    
+    auc = function(ml, mAU) {
+        sum(sapply(seq_len(length(ml) - 1), function(i){
+            (mAU[i] + mAU[i + 1]) * (ml[i + 1] - ml[i]) / 2
+        }))
+    }
+    
+    uv = filter(uv, !is.na(fraction)) %>%
+        group_by(fraction) %>%
+        arrange(ml) %>%
+        summarize(
+            auc = auc(ml, mAU)
+        )
+    auc = uv$auc
+    names(auc) = uv$fraction
+    return(auc)
+})
+colnames(auc_data) = names(sec_data)
+```
+

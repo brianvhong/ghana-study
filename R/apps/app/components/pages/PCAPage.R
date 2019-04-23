@@ -67,6 +67,7 @@ PCAPage = R6Class(
             observe({
                 pca = self$runPrcomp(scale = input$scale, cutoff = input$cutoff)
                 output$plot = renderPlotly({
+                    lpd = data$data$lpd
                     df = data.frame(
                         PC1 = pca$x[,"PC1"],
                         PC2 = pca$x[,"PC2"],
@@ -94,8 +95,8 @@ PCAPage = R6Class(
                 "z-score scale" = self$zscoreScale,
                 "absolute scale" = self$absoluteScale
             )
-            X = lpd$species$conc_table
-            X = X[limma_list$species$pvalue <= cutoff,]
+            X = data$data$lpd$species$conc_table
+            X = X[data$lm$lpd$species$pvalue <= cutoff,]
             X = scale_fun(t(X))
             pca = prcomp(X)
             return(pca)

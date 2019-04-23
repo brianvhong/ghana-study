@@ -60,6 +60,7 @@ CliBoxplotPage = R6Class(
             })
             observeEvent(states$rows_selected, {
                 if(!is.null(states$rows_selected)){
+                    lpd = data$data$lpd
                     variable = c("waz18", "laz18", "wlz18", "hcz18", "chol_efflux")[states$rows_selected]
                     data = data.frame(
                         x = lpd$species$sample_table$flipgroup,
@@ -78,6 +79,7 @@ CliBoxplotPage = R6Class(
         },
         
         runTTest = function(alternative){
+            lpd = data$data$lpd
             df = lpd$species$sample_table[,c("waz18", "laz18", "wlz18", "hcz18", "chol_efflux")]
             flipgroup = lpd$species$sample_table$flipgroup
             

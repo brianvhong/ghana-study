@@ -17,7 +17,9 @@ SidebarPanel = R6Class(
                     menuItem("Lipidome Boxplot", tabName = "lpd-boxplot"),
                     menuItem("Clinical Values", tabName = "cli-boxplot"),
                     menuItem("vs Anthropometric", tabName = "lpd-atm"),
-                    menuItem("PCA", tabName = "lpd-pca")
+                    menuItem("PCA", tabName = "lpd-pca"),
+                    menuItem("SEC Boxplot", tabName = "sec-boxplot"),
+                    menuItem("SEC Cromatogram", tabName = "sec-chrom")
                     #menuItem("Categorial Z scores", tabName = "zscore"),
                     #menuItem("P value Histograms", tabName = "hist"),
                     #menuItem("Correlation Volcano", tabName = "corr-volc")
@@ -48,7 +50,7 @@ SidebarPanel = R6Class(
                         selectInput(
                             session$ns("lpd-level"),
                             "Select lipidomics data level",
-                            choices = names(lpd)
+                            choices = names(data$data$lpd)
                         )
                     )
                 } else if (input$tabs == "lpd-atm") {
@@ -56,13 +58,13 @@ SidebarPanel = R6Class(
                         selectInput(
                             session$ns("lpd-level"),
                             "Select lipidomics data level",
-                            choices = names(lpd)
+                            choices = names(data$data$lpd)
                         ),
                         selectInput(
                             session$ns("corr-method"), 
                             "Select Correlation Method:",
-                            choices = names(corr_atm$class),
-                            selected = names(corr_atm$class)[1]
+                            choices = names(data$corr$lpd$atm$class),
+                            selected = names(data$corr$lpd$atm$class)[1]
                         ),
                         selectInput(
                             session$ns("atm"),

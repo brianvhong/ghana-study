@@ -52,7 +52,7 @@ LpdAtmPage = R6Class(
                     !is.null(props$`corr-method`) &
                     !is.null(props$atm)
                 ){
-                    data = corr_atm[[props$`lpd-level`]][[props$`corr-method`]][[props$atm]]
+                    data = data$corr$lpd$atm[[props$`lpd-level`]][[props$`corr-method`]][[props$atm]]
                     tableData = self$dataTable$call(props = reactiveValues(
                         data = data
                     ))
@@ -64,6 +64,7 @@ LpdAtmPage = R6Class(
             })
             observeEvent(states$featureSelected, {
                 if(!is.null(states$featureSelected)){
+                    lpd = data$data$lpd
                     data = data.frame(
                         x = as.numeric(lpd[[props$`lpd-level`]]$conc_table[states$featureSelected,]),
                         y = lpd$species$sample_table[, props$atm],

@@ -1,5 +1,5 @@
 pkgs = c("dplyr", "reshape2", "stringr", "tidyr", "tibble",
-         "Metabase", "readxl","readr")
+         "Metabase", "readxl","readr", "zeallot")
 for(pkg in pkgs){
     library(pkg, character.only = TRUE, warn.conflicts = FALSE, 
             quietly = TRUE, verbose = FALSE)
@@ -107,6 +107,64 @@ chol_efflux = read_excel(
 
 lpd$sample_table$chol_efflux = chol_efflux[sampleNames(lpd),]
 
+################################################################################
+##########                           S E C                            ##########
+################################################################################
+
+files = list.files("../raw_data/ghana sec/", full.names = TRUE)
+sec_data = lapply(files, function(f){
+    data = read.table(
+        f, header = T, skip = 2, sep = "\t",
+        stringsAsFactors = FALSE
+    )
+    
+    uv = data[,1:2] %>% drop_na()
+    fr = data[,3:4] %>% drop_na()
+    bl = data[5:6] %>% drop_na()
+    
+    colnames(fr) = c("ml", "fraction")
+    colnames(bl) = c("ml", "mAU")
+    
+    fr$fraction = trimws(fr$fraction, which = "left")
+    
+    return(list(
+        uv = uv,
+        fr = fr,
+        bl = bl
+    ))
+})
+names(sec_data) = gsub(".+ghana-\\d*-(\\d{4})\\.asc", "Ghana \\1", files)
+
+auc_data = sapply(sec_data, function(sample){
+    c(uv, fr, bl) %<-% sample
+    uv$mAU = uv$mAU - bl$mAU
+    fr = filter(fr, fraction %in% as.character(1:8))
+    uv$fraction = cut(uv$ml, breaks = fr$ml, labels = as.character(fr$fraction[-nrow(fr)]))
+    
+    auc = function(ml, mAU) {
+        sum(sapply(seq_len(length(ml) - 1), function(i){
+            (mAU[i] + mAU[i + 1]) * (ml[i + 1] - ml[i]) / 2
+        }))
+    }
+    
+    uv = filter(uv, !is.na(fraction)) %>%
+        group_by(fraction) %>%
+        arrange(ml) %>%
+        summarize(
+            auc = auc(ml, mAU)
+        )
+    auc = uv$auc
+    names(auc) = uv$fraction
+    return(auc)
+})
+colnames(auc_data) = names(sec_data)
+rownames(auc_data) = paste0("F", rownames(auc_data))
+auc_data = auc_data[, sampleNames(lpd)]
+sec = MultxSet(
+    conc_table = conc_table(as.matrix(auc_data)),
+    sample_table = lpd$sample_table
+)
+chr = sec_data
 ## -------- save ---------------------------------------------------------------
-save(lpd, file = "hdl.rda")
+save(lpd, sec, chr, file = "hdl.rda")
 
