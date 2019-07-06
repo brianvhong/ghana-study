@@ -1,0 +1,209 @@
+---
+title: "Calibration Curve"
+output: 
+    html_document:
+        toc: true
+        toc_float: true
+date: "`r format(Sys.time(), '%d %B, %Y')`"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message = FALSE, warning = FALSE)
+```
+
+
+```{r}
+pkgs = c("dplyr", "reshape2", "tibble", "Metabase", "ggplot2", "readxl", "plotly",
+         "latex2exp", "DT")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only = TRUE))
+}
+```
+
+```{r}
+load("../../data/hdl.rda")
+curve = glc$curve$curve_params
+curve_data = glc$curve$curve_data
+```
+
+```{r}
+plot_calibration_curve = function(protein){
+    df = data.frame(
+        resp = curve_data$resp[, protein],
+        conc = curve_data$conc[, protein]
+    )
+    
+    (ggplot(df, aes(x = resp, y = conc)) +
+        stat_smooth(method = "lm", color = "steelblue") +
+        geom_point(shape = 21, color = "white", fill = "black", size = 2) +
+        annotate(
+            "text",
+            x = min(df$resp) + (max(df$resp - min(df$resp))) * 0.1,
+            y = max(df$conc) - (max(df$conc - min(df$conc))) * 0.05,
+            label = paste0("R^2 = ", round(curve[protein, "r2"], 5))
+        ) +
+        theme_bw()
+        ) %>%
+        ggplotly
+}
+plot_hist = function(feature){
+    df = data.frame(
+        resp = as.numeric(glc$peptide$conc_table[feature,])
+    )
+    (ggplot(df) +
+        geom_histogram(aes(x = resp), color = "white") +
+        labs(title = feature) +
+        theme_bw()) %>%
+        ggplotly
+}
+```
+
+
+## 1. Information
+
+This dataset has `r length(unique(glc$peptide$feature_data$Protein))` different proteins. `r sum(sapply(unique(glc$peptide$feature_data$Protein), function(prot){any(glc$glycoforms$feature_data$Protein == prot )}))` proteins have at least one glycoforms detected, while `r length(unique(glc$peptide$feature_data$Protein)) - sum(sapply(unique(glc$peptide$feature_data$Protein), function(prot){any(glc$glycoforms$feature_data$Protein == prot )}))` do not have any glycoforms.
+
+```{r}
+data.frame(
+    Protein = unique(glc$peptide$feature_data$Protein)
+) %>%
+    mutate(
+        `Number of Peptides` = sapply(Protein, function(prot){
+            sum(glc$peptide$feature_data$Protein == prot)
+        }),
+        `Number of Glycoforms` = sapply(Protein, function(prot){
+            sum(glc$glycoforms$feature_data$Protein == prot)
+        })
+    ) %>%
+    arrange(desc(`Number of Glycoforms`)) %>%
+    datatable()
+```
+
+Five Proteins have calibration curves. They are Clus, ApoC1, ApoA1, ApoD, and ApoE. The calculated calibration curve parameters are below:
+
+```{r}
+datatable(curve)
+```
+
+
+## 2. Calibration Curves
+
+### 2.1. Clus
+
+This calibration curve has a decent $R^2$ value. 
+
+Calculated calibration parameters:
+
++ slop: `r curve["Clus", "slope"]`
++ intercept: `r curve["Clus", "intercept"]`
+
+```{r}
+plot_calibration_curve("Clus")
+```
+
+"The dataset only has one CLUS peptide, `QuantPep-CLUS_ASSIIDELFQDR Results`, which ranges from `r min(glc$peptide$conc_table["QuantPep-CLUS_ASSIIDELFQDR Results",])` to `r max(glc$peptide$conc_table["QuantPep-CLUS_ASSIIDELFQDR Results",])`, that is perfectly in the range of the calibration curve.
+
+```{r}
+plot_hist("QuantPep-CLUS_ASSIIDELFQDR Results")
+```
+
+### 2.2. ApoC1
+
+This curve has a great $R^2$, with the calculated parameters:
+
++ slop: `r curve["ApoC1", "slope"]`
++ intercept: `r curve["ApoC1", "intercept"]`
+
+```{r}
+plot_calibration_curve("ApoC1")
+```
+
+There is also only one ApoC1, `pep-APOC1-QSELSAK Results`, ranges from `r min(glc$peptide$conc_table["pep-APOC1-QSELSAK Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["pep-APOC1-QSELSAK Results",], na.rm = TRUE)`. There seems to be one person with an extreme high value.
+
+```{r}
+plot_hist("pep-APOC1-QSELSAK Results")
+```
+
+### 2.3. ApoA1
+
+The ApoA1 curve does not seem to be very ideal. The calculated parameters are blow:
+
++ slop: `r curve["ApoA1", "slope"]`
++ intercept: `r curve["ApoA1", "intercept"]`
+
+
+```{r}
+plot_calibration_curve("ApoA1")
+```
+
+There are two ApoA1 peptides:
+
++ `pep-APOA1_LAEYHAK Results`, ranges from `r min(glc$peptide$conc_table["pep-APOA1_LAEYHAK Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["pep-APOA1_LAEYHAK Results",], na.rm = TRUE)`
++ `QuantPep-APOA1_DLATVYVDVLK Results`, ranges from `r min(glc$peptide$conc_table["QuantPep-APOA1_DLATVYVDVLK Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["QuantPep-APOA1_DLATVYVDVLK Results",], na.rm = TRUE)`
+
+Both the peptides are in a range that is higher than the highest point of the calibration curve.
+
+```{r}
+plot_hist("pep-APOA1_LAEYHAK Results")
+```
+
+```{r}
+plot_hist("QuantPep-APOA1_DLATVYVDVLK Results")
+```
+
+### 2.4. ApoD
+
+This calibration curve is perfect.
+
++ slop: `r curve["ApoD", "slope"]`
++ intercept: `r curve["ApoD", "intercept"]`
+
+```{r}
+plot_calibration_curve("ApoD")
+```
+
+The ApoD peptide, `QuantPep-APOD_VLNQELR Results`, ranges from `r min(glc$peptide$conc_table["QuantPep-APOD_VLNQELR Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["QuantPep-APOD_VLNQELR Results",], na.rm = TRUE)`
+
+```{r}
+plot_hist("QuantPep-APOD_VLNQELR Results")
+```
+
+
+### 2.5. ApoE
+
+The ApoE calibration curve is also perfect. The parameters are:
+
++ slop: `r curve["ApoE", "slope"]`
++ intercept: `r curve["ApoE", "intercept"]`
+
+
+```{r}
+plot_calibration_curve("ApoE")
+```
+
+Three ApoE peptides are found from the dataset:
+
++ `pep-APOE_LGPLVEQGR_z3 Results`， ranges from `r min(glc$peptide$conc_table["pep-APOE_LGPLVEQGR_z3 Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["pep-APOE_LGPLVEQGR_z3 Results",], na.rm = TRUE)`
++ `pep-APOE_LGPLVEQGR_z4 Results`， ranges from `r min(glc$peptide$conc_table["pep-APOE_LGPLVEQGR_z4 Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["pep-APOE_LGPLVEQGR_z4 Results",], na.rm = TRUE)`
++ `APOE_AATVGSLAGQPLQER_z2 Results`, ranges from `r min(glc$peptide$conc_table["APOE_AATVGSLAGQPLQER_z2 Results",], na.rm = TRUE)` to `r max(glc$peptide$conc_table["APOE_AATVGSLAGQPLQER_z2 Results",], na.rm = TRUE)`
+
+```{r}
+plot_hist("pep-APOE_LGPLVEQGR_z3 Results")
+```
+
+```{r}
+plot_hist("pep-APOE_LGPLVEQGR_z4 Results")
+```
+
+```{r}
+plot_hist("APOE_AATVGSLAGQPLQER_z2 Results")
+```
+
+
+## 3. Summary
+
+1. Many proteins have multiple peptides reported. Which peptide should we used to report the "abundance" of the particular protein? Should we use the one with the highest response (intensity)?
+
+2. Which peptide should we use to calculate the concentration with the calibration curves?
+
+3. The ApoA1 curve does not seem to be ideal 

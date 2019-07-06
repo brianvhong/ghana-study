@@ -165,6 +165,101 @@ sec = MultxSet(
     sample_table = lpd$sample_table
 )
 chr = sec_data
+
+################################################################################
+##########                 G L Y C O P R O T E O M E                  ##########
+################################################################################
+file = "../raw_data/20190529 Ghana HDL data.xlsx"
+glc_data = read_excel(file, sheet = 2, col_names = T) %>%
+    as.data.frame %>%
+    column_to_rownames('...1')
+
+## -------- glycoforms ---------------------------------------------------------
+glc = glc_data[grepl("^[A-Z0-9]+_[0-9A-Za-z/]+_[0-9/]+", rownames(glc_data)),]
+fdata = data.frame(
+    gsub(" Results$", "", rownames(glc))
+) %>% 
+    tidyr::separate(
+        col = 1,
+        into = c("Protein", "Position", "Glycan", "z"),
+        sep = "_"
+    )
+rownames(fdata) = rownames(glc)
+glc = GlycomicsSet(
+    conc_table = conc_table(as.matrix(glc)),
+    feature_data = feature_data(fdata)
+)
+
+## -------- peptides -----------------------------------------------------------
+pep = glc_data[!(
+    grepl("^[A-Z0-9]+_[0-9A-Za-z/]+_[0-9/]+", rownames(glc_data)) |
+        grepl("^ISTD", rownames(glc_data))
+),]
+
+proteins = NULL
+sequences = NULL
+zs = NULL
+for(peptide in rownames(pep)){
+    if(grepl("^[A-Z0-9]+_[0-9A-Za-z/]+_ungly+", peptide)){
+        proteins = c(proteins, str_split_fixed(peptide, "_", n = 2)[1])
+        sequences = c(sequences, NA)
+        zs = c(zs, NA)
+    } else if(grepl("^pep-", peptide)){
+        proteins = c(proteins, gsub("^pep-([A-Z0-9]+)[-_]{1}.+", "\\1", peptide))
+        sequences = c(sequences, gsub("^pep-[A-Z0-9]+[-_]{1}([A-Z]+).+", "\\1", peptide))
+        if(grepl("^pep-[A-Z0-9]+[-_]{1}[A-Z]+_z[0-9]{1}.+", peptide)){
+            zs = c(zs, gsub("^pep-[A-Z0-9]+[-_]{1}[A-Z]+_(z[0-9]{1}).+", "\\1", peptide))   
+        } else {
+            zs = c(zs, NA)
+        }
+    } else if(grepl("^QuantPep-", peptide)){
+        proteins = c(proteins, gsub("^QuantPep-([A-Z0-9]+).+", "\\1", peptide))
+        sequences = c(sequences, gsub("^QuantPep-[A-Z0-9]+_([A-Z]+).+", "\\1", peptide))
+        zs = c(zs, NA)
+    } else {
+        proteins = c(proteins, gsub("^([A-Z0-9]+)[-_]{1}.+", "\\1", peptide))
+        sequences = c(sequences, gsub("^[A-Z0-9]+[-_]{1}([A-Z]+).+", "\\1", peptide))
+        zs = c(zs, gsub("^[A-Z0-9]+[-_]{1}[A-Z]+_(z[0-9]{1}).+", "\\1", peptide))
+    }
+}
+
+fdata = data.frame(
+    Protein = proteins,
+    Sequence = sequences,
+    z = zs,
+    row.names = rownames(pep)
+)
+pep = ProteomicsSet(
+    conc_table = conc_table(as.matrix(pep)),
+    feature_data = feature_data(fdata)
+)
+
+## -------- calibraction curve -------------------------------------------------
+curve_data = list(
+    conc = read_excel(file, sheet = 1, range = "D2:H11") %>% as.data.frame,
+    resp = read_excel(file, sheet = 1, range = "J2:N11") %>% as.data.frame
+)
+
+curve = sapply(seq_along(curve_data$conc), function(i){
+    res = lm(curve_data$resp[,i] ~ curve_data$conc[,i])
+    intercept = res$coefficients[1]
+    slope = res$coefficients[2]
+    r2 = summary(res)$r.squared
+    result = c(intercept,  slope, r2)
+    names(result) = c("intercept", "slope", "r2")
+    return(result)
+}) %>% t %>% as.data.frame
+rownames(curve) = colnames(curve_data$conc)
+
+glc = list(
+    peptide = pep,
+    glycoforms = glc,
+    curve = list(
+        curve_data = curve_data,
+        curve_params = curve
+    )
+)
+
 ## -------- save ---------------------------------------------------------------
-save(lpd, sec, chr, file = "hdl.rda")
+save(lpd, sec, chr, glc, file = "hdl.rda")
 
