@@ -77,13 +77,14 @@ lpd = filter_by_cv(lpd, cv = "qc_cv", cid = "InChIKey")
 lpd$feature_data$Annotation = lipid_name_formater(lpd$feature_data$Annotation)
 lpd$feature_data$Annotation = make.unique(lpd$feature_data$Annotation)
 featureNames(lpd) = lpd$feature_data$Annotation
+sampleNames(lpd) = gsub("Ghana ", "ghana_", sampleNames(lpd))
 
 ## read additional sample data
 group_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17]
 group_data = group_data %>%
     mutate(
         flipgroup = factor(flipgroup),
-        sample_id = paste("Ghana", wid),
+        sample_id = paste0("ghana_", wid),
         sex_updated = factor(sex_updated)
     ) %>%
     as.data.frame %>%
@@ -102,7 +103,7 @@ chol_efflux = read_excel(
     sheet = "Final Results",
     range = "A3:B81"
 ) %>%
-    mutate(`Subject ID` = str_c("Ghana ", `Subject ID`)) %>%
+    mutate(`Subject ID` = str_c("ghana_", `Subject ID`)) %>%
     as.data.frame %>% column_to_rownames("Subject ID")
 
 lpd$sample_table$chol_efflux = chol_efflux[sampleNames(lpd),]
@@ -133,7 +134,7 @@ sec_data = lapply(files, function(f){
         bl = bl
     ))
 })
-names(sec_data) = gsub(".+ghana-\\d*-(\\d{4})\\.asc", "Ghana \\1", files)
+names(sec_data) = gsub(".+ghana-\\d*-(\\d{4})\\.asc", "ghana_\\1", files)
 
 auc_data = sapply(sec_data, function(sample){
     c(uv, fr, bl) %<-% sample
@@ -173,7 +174,8 @@ file = "../raw_data/20190529 Ghana HDL data.xlsx"
 glc_data = read_excel(file, sheet = 2, col_names = T) %>%
     as.data.frame %>%
     column_to_rownames('...1')
-
+colnames(glc_data) = paste0("ghana_", colnames(glc_data))
+glc_data = glc_data[, sampleNames(lpd)]
 ## -------- glycoforms ---------------------------------------------------------
 glc = glc_data[grepl("^[A-Z0-9]+_[0-9A-Za-z/]+_[0-9/]+", rownames(glc_data)),]
 fdata = data.frame(
@@ -187,7 +189,8 @@ fdata = data.frame(
 rownames(fdata) = rownames(glc)
 glc = GlycomicsSet(
     conc_table = conc_table(as.matrix(glc)),
-    feature_data = feature_data(fdata)
+    feature_data = feature_data(fdata),
+    sample_table = sample_table(lpd)
 )
 
 ## -------- peptides -----------------------------------------------------------

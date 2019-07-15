@@ -199,8 +199,107 @@ plot_hist("pep-APOE_LGPLVEQGR_z4 Results")
 plot_hist("APOE_AATVGSLAGQPLQER_z2 Results")
 ```
 
+## 3. Missing Values
 
-## 3. Summary
+### Unglycosylated Peptides
+
+The graph below shows the number of zeros in each unglycosylated peptide. 
+
+```{r}
+(table(apply(glc$peptide$conc_table, 1, function(row) sum(row == 0))) %>%
+    as.data.frame %>%
+    ggplot() +
+    geom_col(aes(x = Var1, y = Freq)) +
+    labs(x = "Number of Zeros", title = "Peptides") +
+    theme_bw()) %>%
+    ggplotly
+```
+
+The peptide with 21 zero is `r featureNames(glc$peptide)[apply(glc$peptide$conc_table, 1, function(row) sum(row == 0))==21]`. Fortunately the other two APOM peptdies do not have any zero
+
+```{r}
+subset_features(
+    glc$peptide,
+    grepl("APOM", featureNames(glc$peptide))
+) %>%
+    conc_table %>% apply(1, function(row) sum(row == 0))
+```
+
+The peptide with 13 zero is `r featureNames(glc$peptide)[apply(glc$peptide$conc_table, 1, function(row) sum(row == 0))==13]`. And again, the other APOC3 peptdies do not have any zero.
+
+```{r}
+subset_features(
+    glc$peptide,
+    grepl("APOC3", featureNames(glc$peptide))
+) %>%
+    conc_table %>% apply(1, function(row) sum(row == 0))
+```
+
+The peptide with 6 zero is `r featureNames(glc$peptide)[apply(glc$peptide$conc_table, 1, function(row) sum(row == 0))==6]`. And the other LCAT peptdies do not have any zero.
+
+```{r}
+subset_features(
+    glc$peptide,
+    grepl("LCAT", featureNames(glc$peptide))
+) %>%
+    conc_table %>% apply(1, function(row) sum(row == 0))
+```
+
+The peptide with 3 zero is `r featureNames(glc$peptide)[apply(glc$peptide$conc_table, 1, function(row) sum(row == 0))==3]`. 
+```{r}
+subset_features(
+    glc$peptide,
+    grepl("APOA", featureNames(glc$peptide))
+) %>%
+    conc_table %>% apply(1, function(row) sum(row == 0))
+```
+
+The two peptdies with 2 zerois are:
+
+```{r}
+featureNames(glc$peptide)[apply(glc$peptide$conc_table, 1, function(row) sum(row == 0))==1]
+```
+
+Both ApoA5 and APOL1 have only one unglycosylated peptide detected, and neither of them have any glycoforms. 
+
+### Glycoforms
+
+```{r}
+(table(apply(glc$glycoforms$conc_table, 1, function(row) sum(row == 0))) %>%
+    as.data.frame %>%
+    ggplot() +
+    geom_col(aes(x = Var1, y = Freq)) +
+    labs(x = "Number of Zeros", title = "Glycoforms") +
+    theme_bw()) %>%
+    ggplotly
+```
+
+1. Peptides with more than 2 zeros will be removed.
+
+2. Glycans with 6 or more zeros will be removed.
+
+3. For the rest glycans, zeros will be filled with the lowest value in all samples devided by 2.
+
+4. Glycans will be normalized to its unglycosylated peptide.
+
+## 4. Peptides
+
+```{r}
+glc$peptide$feature_data %>%
+    rownames_to_column("feature_id") %>%
+    mutate(
+        num_zero = apply(glc$peptide$conc_table, 1, function(row) sum(row == 0)),
+        mean_response = rowMeans(glc$peptide$conc_table)
+    ) %>%
+    # mutate(
+    #     mean_response = format(mean_response, digits = 3)
+    # ) %>%
+    datatable(options = list(order = list(2, "asc"))) %>%
+    formatSignif(6, 3)
+```
+
+
+## 5. Summary
 
 1. Many proteins have multiple peptides reported. Which peptide should we used to report the "abundance" of the particular protein? Should we use the one with the highest response (intensity)?
 
