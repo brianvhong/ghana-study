@@ -3,6 +3,28 @@ SidebarPanel = R6Class(
     inherit = ShinyModule,
     public = list(
         # attributes
+        emit = reactiveValues(
+            tab = NULL,
+            lpd = reactiveValues(
+                level = NULL,
+                fct = "chol_efflux",
+                cli = NULL,
+                sec = NULL
+            ),
+            glc = reactiveValues(
+                level = NULL,
+                fct = "chol_efflux",
+                cli = NULL,
+                sec = NULL
+            ),
+            cli = reactiveValues(
+                fct = "chol_efflux",
+                alter = NULL
+            ),
+            fct = reactiveValues(
+                alter = NULL
+            )
+        ),
         
         # initializer
         initialize = function(){
@@ -13,13 +35,33 @@ SidebarPanel = R6Class(
         ui = function(){
             dashboardSidebar(
                 sidebarMenu(
-                    id = "tabs",
-                    menuItem("Lipidome Boxplot", tabName = "lpd-boxplot"),
-                    menuItem("Clinical Values", tabName = "cli-boxplot"),
-                    menuItem("vs Anthropometric", tabName = "lpd-atm"),
-                    menuItem("PCA", tabName = "lpd-pca"),
-                    menuItem("SEC Boxplot", tabName = "sec-boxplot"),
-                    menuItem("SEC Cromatogram", tabName = "sec-chrom")
+                    id = "tab",
+                    menuItem(
+                        "Lipidome",
+                        menuSubItem("Boxplot", tabName = "lpd-lm"),
+                        menuSubItem("vs Clinical Values", tabName = "lpd-cli"),
+                        menuSubItem("vs HDL Function", tabName = "lpd-fct")
+                    ),
+                    menuItem(
+                        "Glycoproteome",
+                        menuSubItem("Boxplot", tabName = "glc-lm"),
+                        menuSubItem("vs Clinical Values", tabName = "glc-cli"),
+                        menuSubItem("vs HDL Function", tabName = "glc-fct")
+                    ),
+                    menuItem(
+                        "Clinical Values",
+                        menuSubItem("Boxplot", tabName = "cli-lm"),
+                        menuSubItem("vs HDL Function", tabName = "cli-fct")
+                    ),
+                    menuItem(
+                        "HDL Function",
+                        menuSubItem("Boxplot", tabName = "fct-lm")
+                    ),
+                    menuItem(
+                        "SEC",
+                        menuSubItem("SEC Boxplot", tabName = "sec-lm"),
+                        menuSubItem("SEC Cromatogram", tabName = "sec-chrom")
+                    )
                     #menuItem("Categorial Z scores", tabName = "zscore"),
                     #menuItem("P value Histograms", tabName = "hist"),
                     #menuItem("Correlation Volcano", tabName = "corr-volc")
@@ -37,52 +79,96 @@ SidebarPanel = R6Class(
         #' @emit corr-method: string, the correlation method
         #' @emit atm: string, the anthropometric variable
         server = function(input, output, session){
-            emit = reactiveValues(
-                tabs = NULL,
-                `lpd-level` = NULL,
-                `corr-method` = NULL,
-                atm = NULL
-            )
             
             output$`input-panel` = renderUI({
-                if(input$tabs == "lpd-boxplot") {
-                    tagList(
+                inputs = tagList()
+                if(grepl("^lpd", input$tab)) {
+                    inputs = tagAppendChild(
+                        inputs,
                         selectInput(
                             session$ns("lpd-level"),
                             "Select lipidomics data level",
                             choices = names(data$data$lpd)
                         )
                     )
-                } else if (input$tabs == "lpd-atm") {
-                    tagList(
+                } else if(grepl("^glc", input$tab)) {
+                    inputs = tagAppendChild(
+                        inputs,
                         selectInput(
-                            session$ns("lpd-level"),
+                            session$ns("glc-level"),
                             "Select lipidomics data level",
-                            choices = names(data$data$lpd)
-                        ),
-                        selectInput(
-                            session$ns("corr-method"), 
-                            "Select Correlation Method:",
-                            choices = names(data$corr$lpd$atm$class),
-                            selected = names(data$corr$lpd$atm$class)[1]
-                        ),
-                        selectInput(
-                            session$ns("atm"),
-                            "Select the athropometric variable",
-                            choices = c("waz18", "laz18", "wlz18", "hcz18", "chol_efflux"),
-                            selected = "waz18"
+                            choices = names(data$data$glc)
                         )
                     )
                 }
+                
+                if(input$tab == "cli-lm"){
+                    inputs = tagAppendChild(
+                        inputs,
+                        radioButtons(
+                            inputId = "cli-alter",
+                            label = "Alternative",
+                            choices = c("two.sided", "less", "greater"),
+                            selected = "two.sided"
+                        )
+                    )
+                }
+                
+                if(input$tab == "fct-lm"){
+                    inputs = tagAppendChild(
+                        inputs,
+                        radioButtons(
+                            inputId = "fct-alter",
+                            label = "Alternative",
+                            choices = c("two.sided", "less", "greater"),
+                            selected = "two.sided"
+                        )
+                    )
+                }
+                
+                if(grepl("-cli$", input$tab)) {
+                    inputs = tagAppendChild(
+                        inputs,
+                        selectInput(
+                            session$ns("cli-var"),
+                            "Select a Clinical Variable",
+                            choices = featureNames(data$data$cli)
+                        )
+                    )
+                }
+                inputs
             })
             
-            observe({
-                emit$tabs = input$tabs
-                emit$`lpd-level` = input$`lpd-level`
-                emit$`corr-method` = input$`corr-method`
-                emit$atm = input$atm
+            observeEvent(input$tab, {
+                self$emit$tab = input$tab
+                if(grepl("^lpd", input$tab)){
+                    observeEvent(input$`lpd-level`, {
+                        self$emit$lpd$level = input$`lpd-level`
+                    })
+                    observeEvent(input$`cli-var`, {
+                        self$emit$lpd$cli = input$`cli-var`  
+                    })
+                } else if (grepl("^glc", input$tab)) {
+                    observeEvent(input$`glc-level`, {
+                        self$emit$glc$level = input$`glc-level`
+                    })
+                    observeEvent(input$`cli-var`, {
+                        self$emit$glc$cli = input$`cli-var`  
+                    })
+                }
+                if(input$tab == "cli-lm"){
+                    observeEvent(input$`cli-alter`, {
+                        self$emit$cli$alter = input$`cli-alter`
+                    })
+                }
+                if(input$tab == "fct-lm"){
+                    observeEvent(input$`fct-alter`, {
+                        self$emit$fct$alter = input$`fct-alter`
+                    })
+                }
             })
-            return(emit)
+            
+            return(self$emit)
         }
     )
 )

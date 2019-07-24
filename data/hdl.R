@@ -79,9 +79,11 @@ lpd$feature_data$Annotation = make.unique(lpd$feature_data$Annotation)
 featureNames(lpd) = lpd$feature_data$Annotation
 sampleNames(lpd) = gsub("Ghana ", "ghana_", sampleNames(lpd))
 
+################################################################################
+##########                      Clinical Values                       ##########
+################################################################################
 ## read additional sample data
-group_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17]
-group_data = group_data %>%
+cli_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17] %>%
     mutate(
         flipgroup = factor(flipgroup),
         sample_id = paste0("ghana_", wid),
@@ -89,10 +91,16 @@ group_data = group_data %>%
     ) %>%
     as.data.frame %>%
     column_to_rownames("sample_id")
+vars = c("wid", "totschyrs", "malaria", "SeasonEnr", "AssetQuintile", "flipgroup", "sex_updated")
+pdata = cli_data[,vars]
+edata = cli_data[,!(colnames(cli_data) %in% vars)] %>% t
+cli = MultxSet(
+    conc_table = conc_table(edata),
+    sample_table = sample_table(pdata)
+)
 
-
-lpd = subset_samples(lpd, rownames(group_data))
-lpd$sample_table = sample_table(cbind(group_data, lpd$sample_table))
+lpd = subset_samples(lpd, sampleNames(cli))
+lpd$sample_table = sample_table(cbind(lpd$sample_table, pdata))
 
 ################################################################################
 ##########                   C H O L   E F F L U X                    ##########
@@ -101,12 +109,21 @@ lpd$sample_table = sample_table(cbind(group_data, lpd$sample_table))
 chol_efflux = read_excel(
     "../raw_data/20190319 Ghana Study HDL 100ug J774 Cholesterol Efflux.xlsx",
     sheet = "Final Results",
-    range = "A3:B81"
+    range = "A3:B83"
 ) %>%
     mutate(`Subject ID` = str_c("ghana_", `Subject ID`)) %>%
     as.data.frame %>% column_to_rownames("Subject ID")
-
-lpd$sample_table$chol_efflux = chol_efflux[sampleNames(lpd),]
+colnames(chol_efflux) = "chol_efflux"
+chol_efflux = chol_efflux[sampleNames(cli),,drop = FALSE]
+fct = MultxSet(
+    conc_table = conc_table(t(chol_efflux)),
+    sample_table = sample_table(pdata),
+    feature_data = feature_data(data.frame(
+        assay = "% Cholesterol Efflux",
+        unit = "%",
+        row.names = "chol_efflux"
+    ))
+)
 
 ################################################################################
 ##########                           S E C                            ##########
@@ -170,12 +187,44 @@ chr = sec_data
 ################################################################################
 ##########                 G L Y C O P R O T E O M E                  ##########
 ################################################################################
-file = "../raw_data/20190529 Ghana HDL data.xlsx"
-glc_data = read_excel(file, sheet = 2, col_names = T) %>%
-    as.data.frame %>%
-    column_to_rownames('...1')
-colnames(glc_data) = paste0("ghana_", colnames(glc_data))
-glc_data = glc_data[, sampleNames(lpd)]
+file = "../raw_data/20190529 Ghana HDL data 20190716.xlsx"
+glc_data = read_excel(
+    file, sheet = 2, col_names = F, skip = 2
+) %>% as.data.frame %>% 
+    column_to_rownames("...1")
+glc_data = glc_data[-1,]
+pdata = read_excel(
+    file, sheet = 2, col_names = T, n_max = 1
+) %>%
+    select(-`Sample Code`) %>%
+    t %>% as.data.frame
+rownames(pdata)[85:98] = paste0("SS-pool-", 1:14)
+colnames(glc_data) = rownames(pdata)
+
+colnames(pdata) = "Sequence Name"
+pdata = pdata %>%
+    rownames_to_column("Sample Name") %>%
+    mutate('Sequence ID' = as.integer(str_extract(`Sequence Name`, "^[0-9]{3}"))) %>%
+    arrange(`Sequence ID`)
+
+batch = numeric(length = nrow(pdata))
+for(i in seq_len(nrow(pdata))) {
+    if(i == 1){
+        b = 0
+    } else if(grepl("^SS-pool", pdata$`Sample Name`[i - 1]) & 
+              !grepl("^SS-pool", pdata$`Sample Name`[i])){
+        b = b + 1
+    }
+    batch[i] = b
+}
+pdata$Batch = batch
+
+pdata = filter(pdata, !grepl("^SS", `Sample Name`))
+pdata = column_to_rownames(pdata, "Sample Name")
+
+ss_data = glc_data %>% select(starts_with("SS"))
+glc_data = glc_data[, rownames(pdata)]
+    
 ## -------- glycoforms ---------------------------------------------------------
 glc = glc_data[grepl("^[A-Z0-9]+_[0-9A-Za-z/]+_[0-9/]+", rownames(glc_data)),]
 fdata = data.frame(
@@ -185,14 +234,25 @@ fdata = data.frame(
         col = 1,
         into = c("Protein", "Position", "Glycan", "z"),
         sep = "_"
+    ) %>%
+    mutate(
+        pool_mean = ss_data[rownames(glc),] %>%
+            select(starts_with("SS-pool")) %>%
+            rowMeans(),
+        pool_sd = ss_data[rownames(glc),] %>%
+            select(starts_with("SS-pool")) %>%
+            apply(1, function(row) sd(row))
+    ) %>%
+    mutate(
+        pool_cv = pool_sd / pool_mean
     )
 rownames(fdata) = rownames(glc)
 glc = GlycomicsSet(
     conc_table = conc_table(as.matrix(glc)),
     feature_data = feature_data(fdata),
-    sample_table = sample_table(lpd)
+    sample_table = sample_table(pdata)
 )
-
+sampleNames(glc) = paste0("ghana_", sampleNames(glc))
 ## -------- peptides -----------------------------------------------------------
 pep = glc_data[!(
     grepl("^[A-Z0-9]+_[0-9A-Za-z/]+_[0-9/]+", rownames(glc_data)) |
@@ -231,38 +291,96 @@ fdata = data.frame(
     Sequence = sequences,
     z = zs,
     row.names = rownames(pep)
-)
+) %>%
+    mutate(
+        pool_mean = ss_data[rownames(pep),] %>%
+            select(starts_with("SS-pool")) %>%
+            rowMeans(),
+        pool_sd = ss_data[rownames(pep),] %>%
+            select(starts_with("SS-pool")) %>%
+            apply(1, function(row) sd(row))
+    ) %>%
+    mutate(
+        pool_cv = pool_sd / pool_mean
+    )
+rownames(fdata) = rownames(pep)
 pep = ProteomicsSet(
     conc_table = conc_table(as.matrix(pep)),
-    feature_data = feature_data(fdata)
+    feature_data = feature_data(fdata),
+    sample_table = sample_table(pdata)
 )
+sampleNames(pep) = paste0(paste0("ghana_", sampleNames(pep)))
 
 ## -------- calibraction curve -------------------------------------------------
 curve_data = list(
-    conc = read_excel(file, sheet = 1, range = "D2:H11") %>% as.data.frame,
-    resp = read_excel(file, sheet = 1, range = "J2:N11") %>% as.data.frame
+    conc = read_excel(file, sheet = 1, range = "E4:I12", col_names = F) %>% as.data.frame,
+    resp = read_excel(file, sheet = 1, range = "K4:O12", col_names = F) %>% as.data.frame
 )
+header = read_excel(file, sheet = 1, range = "E2:I2", col_names = F) %>% as.character()
+peptide = read_excel(file, sheet = 1, range = "E3:I3", col_name = F) %>% as.character()
+
+curve_data = lapply(curve_data, function(li) {
+    colnames(li) = header
+    return(li)
+})
 
 curve = sapply(seq_along(curve_data$conc), function(i){
-    res = lm(curve_data$resp[,i] ~ curve_data$conc[,i])
+    res = lm(curve_data$conc[,i] ~ curve_data$resp[,i])
     intercept = res$coefficients[1]
     slope = res$coefficients[2]
     r2 = summary(res)$r.squared
     result = c(intercept,  slope, r2)
     names(result) = c("intercept", "slope", "r2")
     return(result)
-}) %>% t %>% as.data.frame
+}) %>% t %>% as.data.frame %>%
+    mutate(peptide = peptide)
 rownames(curve) = colnames(curve_data$conc)
 
-glc = list(
-    peptide = pep,
-    glycoforms = glc,
-    curve = list(
-        curve_data = curve_data,
-        curve_params = curve
-    )
+## -------- glc normalization --------------------------------------------------
+glc = subset_features(glc, !(glc$feature_data$Protein %in% c("HPTR", "POLG")))
+ss_data = ss_data[featureNames(glc),]
+for(i in seq_len(nfeatures(glc))) {
+    quant_peptide = NULL
+    protein = glc$feature_data$Protein[i]
+    if(protein == "ApoA1") {
+        quant_peptide = pep$conc_table["pep-APOA1_LAEYHAK Results",]
+    } else if (protein == "SAA"){
+        quant_peptide = pep$conc_table[c(
+            "SAA1_GPGGVWAAEAISDAR_z3 Results",
+            "SAA2_GPGGAWAAEVISNAR_z3 Results",
+            "pep-SAA1_FFGHGAEDSLADQAANEWGR_z3 Results"
+        ),] %>% colSums
+    } else {
+        mset = subset_features(pep, pep$feature_data$Protein == protein)
+        quant_peptide = mset$conc_table[which.max(rowMeans(mset$conc_table)),]
+    }
+    glc$conc_table[i,] = glc$conc_table[i,] / quant_peptide
+}
+
+## -------- pep calibration ----------------------------------------------------
+prt = subset_features(pep, sapply(curve$peptide, function(peptide) grep(peptide, featureNames(pep))))
+for(i in seq_len(nfeatures(prt))) {
+    prt$conc_table[i,] = prt$conc_table[i,]  * curve$slope[i] +  curve$intercept[i]
+}
+prt$experiment_data = list(
+    unit = "g/l"
 )
 
+glc = list(
+    protein = prt,
+    peptide = pep,
+    glycoforms = glc
+)
+glc = lapply(glc, function(li){
+    li = subset_samples(li, sampleNames(lpd))
+    li$sample_table = sample_table(cbind(
+        li$sample_table,
+        lpd$sample_table[,c("wid","totschyrs","malaria","SeasonEnr","AssetQuintile","flipgroup","sex_updated")]
+    ))
+    return(li)
+})
+
+
 ## -------- save ---------------------------------------------------------------
-save(lpd, sec, chr, glc, file = "hdl.rda")
+save(lpd, sec, chr, glc, cli, fct, file = "hdl.rda")
 

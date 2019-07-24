@@ -1,14 +1,10 @@
-## -------- load packages ------------------------------------------------------
-pkgs = c('dplyr','stringr','reshape2','tibble',"Metabase", "MatCorR")
-for(pkg in pkgs){
-    library(pkg, quietly=TRUE, verbose=FALSE, warn.conflicts=FALSE, 
-            character.only=TRUE)
-}
 setwd(dirname(parent.frame(2)$ofile))
+pkgs=c("dplyr", "reshape2", "Metabase", "MatCorR", "stringr")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only=TRUE))
+}
 
-## -------- load data ----------------------------------------------------------
-load("../../data/hdl.rda")
-
+load("../../../../data/hdl.rda")
 ## -------- summarization ------------------------------------------------------
 lpd_prop = transform_by_sample(lpd, function(x) x/sum(x))
 lpd_class = summarize_features(lpd_prop, "class")
@@ -39,7 +35,7 @@ lpd_eod = summarize_EOD(lpd_mol, name = "Annotation", class = "class")
 lpd_acl = summarize_ACL(lpd_mol, name = "Annotation", class = "class")
 lpd_odd = summarize_odd_chain(lpd_mol, name = "Annotation", class="class")
 lpd_ratio = summarize_lipid_ratios(lpd_mol, name = "Annotation", class = "class")
-lpd_ratio = subset_features(lpd_ratio, c("surface/core", "CE/Cholesterol", "PC/LPC", "CE/TG"))
+lpd_ratio = subset_features(lpd_ratio, c("surface/core", "ce/cholesterol", "pc/lpc", "tg/ce"))
 featureNames(lpd_eod) = paste0("EOD ",featureNames(lpd_eod))
 featureNames(lpd_acl) = paste0("ACL ",featureNames(lpd_acl))
 
@@ -88,46 +84,96 @@ lpd = list(
     ratios = lpd_ratio
 )
 
-## -------- additional data cleaning for glc -----------------------------------
-
 ## -------- linear model -------------------------------------------------------
-design = model.matrix(data = as(lpd_class$sample_table, "data.frame"), 
+design = model.matrix(data = as(cli$sample_table, "data.frame"), 
                       ~flipgroup + 1)
 lm_lpd = lapply(lpd, function(data){
     mSet_limma(data, design, transform = log, coef = 2)
 })
-
-lm_glc = lapply(c("peptide", "glycoforms"), function(name){
-    mSet_limma(glc[[name]], design, transform = log, coef = 2)
+lm_glc = lapply(glc, function(data){
+    mSet_limma(data, design, transform = log, coef = 2)
 })
+lm_sec = mSet_limma(sec, design, transform = log, coef = 2)
 
-lm_sec = mSet_limma(sec, design, coef = 2)
+## -------- t test -------------------------------------------------------------
+mSet_ttest = function(mset, var, transform = I, alternative = alternative){
+    res = lapply(seq_len(nfeatures(mset)), function(i){
+        x = transform(mset$conc_table[i,])
+        tt = t.test(x ~ var, alternative = alternative)
+        result = c(tt$estimate[1], log2(tt$estimate[2] / tt$estimate[1]), tt$statistic, tt$p.value)
+        names(result) = c("baseMean", "estimate", "logFC", "pvalue")
+        return(result)
+    })
+    res = do.call(rbind, res)
+    rownames(res) = featureNames(mset)
+    return(res)
+}
+
+alternatives = c("two.sided", "less", "greater")
+
+lm_cli = lapply(alternatives, function(alt) mSet_ttest(cli, cli$sample_table$flipgroup, alternative = alt))
+names(lm_cli) = alternatives
+lm_fct = lapply(alternatives, function(alt) mSet_ttest(fct, fct$sample_table$flipgroup, alternative = alt))
+names(lm_fct) = alternatives
 
 ## -------- correlation --------------------------------------------------------
 ## calculate correlation against anthropometric values.
-X = t(lpd$class$sample_table[,c("waz18", "laz18", "wlz18", "hcz18", "momht", "chol_efflux")])
-corr_atm = lapply(lpd, function(mset){
-    MatCorPack(X, mset$conc_table, 
-               methods = c("pearson", "spearman", "kendall"))
+lpd_cli = lapply(lpd, function(mset) {
+    MatCor(cli$conc_table, mset$conc_table, "pearson")
 })
+lpd_fct = lapply(lpd, function(mset){
+    MatCor(fct$conc_table, mset$conc_table, "pearson")
+})
+lpd_sec = lapply(lpd, function(mset){
+    MatCor(sec$conc_table, mset$conc_table, "pearson")
+})
+glc_cli = lapply(glc, function(mset){
+    MatCor(cli$conc_table, mset$conc_table, "pearson")
+})
+glc_fct = lapply(glc, function(mset){
+    MatCor(fct$conc_table, mset$conc_table, "pearson")
+})
+glc_sec = lapply(glc, function(mset){
+    MatCor(sec$conc_table, mset$conc_table, "pearson")
+})
+fct_cli = MatCor(fct$conc_table, cli$conc_table, "pearson")
+
 
 ## -------- save out -----------------------------------------------------------
 
 data = list(
     data = list(
         lpd = lpd,
-        sec = sec
+        glc = glc,
+        sec = sec,
+        cli = cli,
+        fct = fct,
+        chr = chr
     ),
     lm = list(
         lpd = lm_lpd,
+        glc = lm_glc,
+        cli = lm_cli,
+        fct = lm_fct,
         sec = lm_sec
     ),
     corr = list(
         lpd = list(
-            atm = corr_atm
+            cli = lpd_cli,
+            fct = lpd_fct,
+            sec = lpd_sec
+        ),
+        glc = list(
+            cli = glc_cli,
+            fct = glc_fct,
+            sec = glc_sec
+        ),
+        cli = list(
+            fct = fct_cli
         )
     ),
     chr = chr
 )
 
-save(data, file="../Rdata/lpd_precalc.rda")
+save(data, file="data.rda")
+
