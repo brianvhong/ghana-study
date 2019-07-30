@@ -23,6 +23,9 @@ SidebarPanel = R6Class(
             ),
             fct = reactiveValues(
                 alter = NULL
+            ),
+            sec = reactiveValues(
+                level = NULL
             )
         ),
         
@@ -46,7 +49,8 @@ SidebarPanel = R6Class(
                         "Glycoproteome",
                         menuSubItem("Boxplot", tabName = "glc-lm"),
                         menuSubItem("vs Clinical Values", tabName = "glc-cli"),
-                        menuSubItem("vs HDL Function", tabName = "glc-fct")
+                        menuSubItem("vs HDL Function", tabName = "glc-fct"),
+                        menuSubItem("vs SEC", tabName = "glc-sec")
                     ),
                     menuItem(
                         "Clinical Values",
@@ -98,6 +102,25 @@ SidebarPanel = R6Class(
                             session$ns("glc-level"),
                             "Select lipidomics data level",
                             choices = names(data$data$glc)
+                        )
+                    )
+                    if(input$tab == "glc-sec"){
+                        inputs = tagAppendChild(
+                            inputs,
+                            selectInput(
+                                session$ns("sec-var"),
+                                "HDL Fraction:",
+                                choices = featureNames(data$data$sec$hdl)
+                            )
+                        )
+                    }
+                } else if(grepl("^sec", input$tab)) {
+                    inputs = tagAppendChild(
+                        inputs,
+                        selectInput(
+                            session$ns("sec-level"),
+                            "Chromatogram fractions or HDL fractions:",
+                            choices = names(data$data$sec)
                         )
                     )
                 }
@@ -155,6 +178,9 @@ SidebarPanel = R6Class(
                     observeEvent(input$`cli-var`, {
                         self$emit$glc$cli = input$`cli-var`  
                     })
+                    observeEvent(input$`sec-var`, {
+                        self$emit$glc$sec  = input$`sec-var`
+                    })
                 }
                 if(input$tab == "cli-lm"){
                     observeEvent(input$`cli-alter`, {
@@ -164,6 +190,11 @@ SidebarPanel = R6Class(
                 if(input$tab == "fct-lm"){
                     observeEvent(input$`fct-alter`, {
                         self$emit$fct$alter = input$`fct-alter`
+                    })
+                }
+                if(input$tab == "sec-lm") {
+                    observeEvent(input$`sec-level`, {
+                        self$emit$sec$level = input$`sec-level`
                     })
                 }
             })

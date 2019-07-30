@@ -9,6 +9,9 @@ load("../../../../data/hdl.rda")
 lpd_prop = transform_by_sample(lpd, function(x) x/sum(x))
 lpd_class = summarize_features(lpd_prop, "class")
 
+lpd_apoa1 = transform_by_feature(lpd, function(x) x/glc$protein$conc_table["pep-APOA1_LAEYHAK Results",])
+lpd_class_apoa1 = summarize_features(lpd_apoa1, "class")
+
 ## calculate the molecular weight
 data("wcmc_adduct")
 molwt = as.numeric(rep(NA, nfeatures(lpd)))
@@ -76,12 +79,55 @@ lpd_ratio$conc_table = conc_table(
 )
 
 lpd = list(
-    class = lpd_class,
-    species = lpd_prop,
+    class_prop = lpd_class,
+    species_prop = lpd_prop,
+    class_apoa1 = lpd_class_apoa1,
+    species_apoa1 = lpd_apoa1,
     acl = lpd_acl,
     eod = lpd_eod,
     "odd chain" = lpd_odd,
     ratios = lpd_ratio
+)
+
+## -------- glyccoproteome -----------------------------------------------------
+glc_pep = glc$glycoforms
+pep = glc$peptide
+for(i in seq_len(nfeatures(glc_pep))) {
+    quant_peptide = NULL
+    protein = glc_pep$feature_data$Protein[i]
+    if(protein == "ApoA1") {
+        quant_peptide = pep$conc_table["pep-APOA1_LAEYHAK Results",]
+    } else if (protein == "SAA"){
+        quant_peptide = pep$conc_table[c(
+            "SAA1_GPGGVWAAEAISDAR_z3 Results",
+            "SAA2_GPGGAWAAEVISNAR_z3 Results",
+            "pep-SAA1_FFGHGAEDSLADQAANEWGR_z3 Results"
+        ),] %>% colSums
+    } else {
+        mset = subset_features(pep, pep$feature_data$Protein == protein)
+        quant_peptide = mset$conc_table[which.max(rowMeans(mset$conc_table)),]
+    }
+    glc_pep$conc_table[i,] = glc_pep$conc_table[i,] / quant_peptide
+}
+
+glc_apoa1 = glc$glycoforms %>%
+    transform_by_feature(function(row) row/glc$protein$conc_table["pep-APOA1_LAEYHAK Results",])
+
+glc = list(
+    protein = glc$protein,
+    peptide = glc$peptide,
+    glycan_pep = glc_pep,
+    glycan_apoa1 = glc_apoa1
+)
+
+## -------- SEC ----------------------------------------------------------------
+sec_hdl = sec %>%
+    subset_features(c("F3", "F4", "F5")) %>%
+    transform_by_sample(function(col) col / sum(col))
+featureNames(sec_hdl) = c("lgHDL", 'mdHDL', "smHDL")
+sec = list(
+    fractions = sec,
+    hdl = sec_hdl
 )
 
 ## -------- linear model -------------------------------------------------------
@@ -93,7 +139,9 @@ lm_lpd = lapply(lpd, function(data){
 lm_glc = lapply(glc, function(data){
     mSet_limma(data, design, transform = log, coef = 2)
 })
-lm_sec = mSet_limma(sec, design, transform = log, coef = 2)
+lm_sec = lapply(sec, function(data){
+    mSet_limma(data, design, transform = log, coef = 2)
+})
 
 ## -------- t test -------------------------------------------------------------
 mSet_ttest = function(mset, var, transform = I, alternative = alternative){
@@ -124,9 +172,9 @@ lpd_cli = lapply(lpd, function(mset) {
 lpd_fct = lapply(lpd, function(mset){
     MatCor(fct$conc_table, mset$conc_table, "pearson")
 })
-lpd_sec = lapply(lpd, function(mset){
-    MatCor(sec$conc_table, mset$conc_table, "pearson")
-})
+# lpd_sec = lapply(lpd, function(mset){
+#     MatCor(sec$conc_table, mset$conc_table, "pearson")
+# })
 glc_cli = lapply(glc, function(mset){
     MatCor(cli$conc_table, mset$conc_table, "pearson")
 })
@@ -134,10 +182,13 @@ glc_fct = lapply(glc, function(mset){
     MatCor(fct$conc_table, mset$conc_table, "pearson")
 })
 glc_sec = lapply(glc, function(mset){
-    MatCor(sec$conc_table, mset$conc_table, "pearson")
+    MatCor(sec$hdl$conc_table, mset$conc_table, "pearson")
 })
+# glc_sec = lapply(glc, function(mset){
+#     MatCor(sec$conc_table, mset$conc_table, "pearson")
+# })
 fct_cli = MatCor(fct$conc_table, cli$conc_table, "pearson")
-
+fct_sec = MatCor(fct$conc_table, sec$hdl$conc_table, "pearson")
 
 ## -------- save out -----------------------------------------------------------
 
@@ -160,8 +211,7 @@ data = list(
     corr = list(
         lpd = list(
             cli = lpd_cli,
-            fct = lpd_fct,
-            sec = lpd_sec
+            fct = lpd_fct
         ),
         glc = list(
             cli = glc_cli,
@@ -170,6 +220,9 @@ data = list(
         ),
         cli = list(
             fct = fct_cli
+        ),
+        fct = list(
+            sec = fct_sec
         )
     ),
     chr = chr

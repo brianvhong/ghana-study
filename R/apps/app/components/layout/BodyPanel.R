@@ -15,6 +15,7 @@ BodyPanel = R6Class(
         glcBoxplot = NULL,
         glcFct = NULL,
         glcCli = NULL,
+        glcSec = NULL,
         cliBoxplot = NULL,
         cliFct = NULL,
         fctBoxplot = NULL,
@@ -33,6 +34,7 @@ BodyPanel = R6Class(
             self$glcBoxplot = BoxplotPage$new("glc")
             self$glcFct = ScatterplotPage$new("glc-fct")
             self$glcCli = ScatterplotPage$new("glc-cli")
+            self$glcSec = ScatterplotPage$new("glc-sec")
             self$cliBoxplot = BoxplotPage$new("cli")
             self$cliFct = ScatterplotPage$new("cli-fct")
             self$fctBoxplot = BoxplotPage$new("fct")
@@ -55,6 +57,7 @@ BodyPanel = R6Class(
                         tabItem("glc-lm", self$glcBoxplot$ui()),
                         tabItem("glc-cli", self$glcCli$ui()),
                         tabItem("glc-fct", self$glcFct$ui()),
+                        tabItem("glc-sec", self$glcSec$ui()),
                         tabItem("cli-lm", self$cliBoxplot$ui()),
                         tabItem("cli-fct", self$cliFct$ui()),
                         tabItem("fct-lm", self$fctBoxplot$ui()),
@@ -75,9 +78,15 @@ BodyPanel = R6Class(
             observe({
                 if(grepl("^lpd", props$tab)){
                     if(!is.null(level <- props$lpd$level)) {
+                        if(props$lpd$level %in% c("species_prop", "species_apoa1")) {
+                            show_extraplots = TRUE
+                        } else {
+                            show_extraplots = FALSE
+                        }
                         self$lpdBoxplot$call(props = reactiveValues(
                             lm = data$lm$lpd[[level]],
-                            data = data$data$lpd[[level]]
+                            data = data$data$lpd[[level]],
+                            show_extraplots = show_extraplots
                         ))
                         if(!is.null(fct <- props$lpd$fct)){
                             self$lpdFct$call(props = reactiveValues(
@@ -98,9 +107,15 @@ BodyPanel = R6Class(
                     }
                 }else if(grepl("^glc",props$tab)){
                     if(!is.null(level <- props$glc$level)){
+                        if(props$glc$level %in% c("glycan_pep", "glycan_apoa1")) {
+                            show_extraplots = TRUE
+                        } else {
+                            show_extraplots = FALSE
+                        }
                         self$glcBoxplot$call(props = reactiveValues(
                             lm = data$lm$glc[[level]],
-                            data = data$data$glc[[level]]
+                            data = data$data$glc[[level]],
+                            show_extraplots = show_extraplots
                         ))
                         if(!is.null(fct <- props$glc$fct)){
                             self$glcFct$call(props = reactiveValues(
@@ -118,32 +133,43 @@ BodyPanel = R6Class(
                                 y_var = cli
                             ))
                         }
+                        print(props$glc$sec)
+                        if(!is.null(sec <- props$glc$sec)) {
+                            self$glcSec$call(props = reactiveValues(
+                                corr = data$corr$glc$sec[[level]][[sec]],
+                                X = data$data$glc[[level]],
+                                Y = data$data$sec$hdl,
+                                y_var = sec
+                            ))
+                        }
                     }
                 } else if(props$tab == "fct-lm") {
-                    alter = props$fct$alter
-                    self$fctBoxplot$call(props = reactiveValues(
-                        lm = data$lm$fct[[alter]],
-                        data = data$data$fct
-                    ))
+                    if(!is.null(alter <- props$fct$alter)){
+                        self$fctBoxplot$call(props = reactiveValues(
+                            lm = data$lm$fct[[alter]],
+                            data = data$data$fct
+                        ))
+                    }
                 } else if(grepl("^cli", props$tab)){
-                    alter = props$cli$alter
-                    self$cliBoxplot$call(props = reactiveValues(
-                        lm = data$lm$cli[[alter]],
-                        data = data$data$cli
-                    ))
-                    if(!is.null(fct <- props$cli$fct)){
+                    if(!is.null(alter <- props$cli$alter)){
+                        self$cliBoxplot$call(props = reactiveValues(
+                            lm = data$lm$cli[[alter]],
+                            data = data$data$cli
+                        ))
                         self$cliFct$call(props = reactiveValues(
-                            corr = data$corr$cli$fct[[fct]],
+                            corr = data$corr$cli$fct[["chol_efflux"]],
                             X = data$data$cli,
                             Y = data$data$fct,
-                            y_var = fct
+                            y_var = "chol_efflux"
                         ))
                     }
                 } else if(props$tab == "sec-lm") {
-                    self$secBoxplot$call(props = reactiveValues(
-                        lm = data$lm$sec,
-                        data = data$data$sec
-                    ))
+                    if(!is.null(level <- props$sec$level)){
+                        self$secBoxplot$call(props = reactiveValues(
+                            lm = data$lm$sec[[level]],
+                            data = data$data$sec[[level]]
+                        ))
+                    }
                 } else if (props$tab == "sec-chrom") {
                     self$chromPage$call()
                 }

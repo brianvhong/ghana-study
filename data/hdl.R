@@ -339,23 +339,6 @@ rownames(curve) = colnames(curve_data$conc)
 ## -------- glc normalization --------------------------------------------------
 glc = subset_features(glc, !(glc$feature_data$Protein %in% c("HPTR", "POLG")))
 ss_data = ss_data[featureNames(glc),]
-for(i in seq_len(nfeatures(glc))) {
-    quant_peptide = NULL
-    protein = glc$feature_data$Protein[i]
-    if(protein == "ApoA1") {
-        quant_peptide = pep$conc_table["pep-APOA1_LAEYHAK Results",]
-    } else if (protein == "SAA"){
-        quant_peptide = pep$conc_table[c(
-            "SAA1_GPGGVWAAEAISDAR_z3 Results",
-            "SAA2_GPGGAWAAEVISNAR_z3 Results",
-            "pep-SAA1_FFGHGAEDSLADQAANEWGR_z3 Results"
-        ),] %>% colSums
-    } else {
-        mset = subset_features(pep, pep$feature_data$Protein == protein)
-        quant_peptide = mset$conc_table[which.max(rowMeans(mset$conc_table)),]
-    }
-    glc$conc_table[i,] = glc$conc_table[i,] / quant_peptide
-}
 
 ## -------- pep calibration ----------------------------------------------------
 prt = subset_features(pep, sapply(curve$peptide, function(peptide) grep(peptide, featureNames(pep))))
