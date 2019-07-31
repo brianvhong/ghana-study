@@ -133,12 +133,12 @@ BodyPanel = R6Class(
                                 y_var = cli
                             ))
                         }
-                        print(props$glc$sec)
                         if(!is.null(sec <- props$glc$sec)) {
+                            sec_level = props$glc$`sec-level`
                             self$glcSec$call(props = reactiveValues(
-                                corr = data$corr$glc$sec[[level]][[sec]],
+                                corr = data$corr$glc$sec[[level]][[sec_level]][[sec]],
                                 X = data$data$glc[[level]],
-                                Y = data$data$sec$hdl,
+                                Y = data$data$sec[[sec_level]],
                                 y_var = sec
                             ))
                         }

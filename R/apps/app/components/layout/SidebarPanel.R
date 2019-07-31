@@ -105,12 +105,17 @@ SidebarPanel = R6Class(
                         )
                     )
                     if(input$tab == "glc-sec"){
-                        inputs = tagAppendChild(
+                        inputs = tagAppendChildren(
                             inputs,
+                            selectInput(
+                                session$ns("sec-level"),
+                                "AUC or Proportion:",
+                                choices = c("hdl_raw", "hdl_prop")
+                            ),
                             selectInput(
                                 session$ns("sec-var"),
                                 "HDL Fraction:",
-                                choices = featureNames(data$data$sec$hdl)
+                                choices = featureNames(data$data$sec$hdl_raw)
                             )
                         )
                     }
@@ -177,6 +182,9 @@ SidebarPanel = R6Class(
                     })
                     observeEvent(input$`cli-var`, {
                         self$emit$glc$cli = input$`cli-var`  
+                    })
+                    observeEvent(input$`sec-level`, {
+                        self$emit$glc$`sec-level` = input$`sec-level`
                     })
                     observeEvent(input$`sec-var`, {
                         self$emit$glc$sec  = input$`sec-var`

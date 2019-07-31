@@ -122,12 +122,14 @@ glc = list(
 
 ## -------- SEC ----------------------------------------------------------------
 sec_hdl = sec %>%
-    subset_features(c("F3", "F4", "F5")) %>%
-    transform_by_sample(function(col) col / sum(col))
+    subset_features(c("F3", "F4", "F5"))
 featureNames(sec_hdl) = c("lgHDL", 'mdHDL', "smHDL")
+sec_hdl_prop = sec_hdl %>%
+    transform_by_sample(function(col) col / sum(col))
 sec = list(
     fractions = sec,
-    hdl = sec_hdl
+    hdl_raw = sec_hdl,
+    hdl_prop = sec_hdl_prop
 )
 
 ## -------- linear model -------------------------------------------------------
@@ -182,13 +184,20 @@ glc_fct = lapply(glc, function(mset){
     MatCor(fct$conc_table, mset$conc_table, "pearson")
 })
 glc_sec = lapply(glc, function(mset){
-    MatCor(sec$hdl$conc_table, mset$conc_table, "pearson")
+    slots = c("hdl_raw", "hdl_prop")
+    li = lapply(slots, function(name){
+        MatCor(sec[[name]]$conc_table, mset$conc_table, "pearson")
+    })
+    names(li) = slots
+    return(li)
 })
 # glc_sec = lapply(glc, function(mset){
 #     MatCor(sec$conc_table, mset$conc_table, "pearson")
 # })
 fct_cli = MatCor(fct$conc_table, cli$conc_table, "pearson")
-fct_sec = MatCor(fct$conc_table, sec$hdl$conc_table, "pearson")
+fct_sec = lapply(c("hdl_raw", "hdl_prop"), function(name) {
+    MatCor(fct$conc_table, sec[[name]]$conc_table, "pearson")
+})
 
 ## -------- save out -----------------------------------------------------------
 

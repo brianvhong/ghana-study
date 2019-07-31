@@ -44,10 +44,10 @@ ChromatogramPage = R6Class(
                 sample_selected = NULL
             )
             tableData = self$dataTable$call(props = reactiveValues(
-                data = data$data$sec$sample_table
+                data = data$data$sec$fractions$sample_table
             ))
             observeEvent(tableData$rows_selected, {
-                states$sample_selected = sampleNames(data$data$sec)[tableData$rows_selected]
+                states$sample_selected = sampleNames(data$data$sec$fractions)[tableData$rows_selected]
                 print(states$sample_selected)
             })
             
