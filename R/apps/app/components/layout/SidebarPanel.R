@@ -15,7 +15,8 @@ SidebarPanel = R6Class(
                 level = NULL,
                 fct = "chol_efflux",
                 cli = NULL,
-                sec = NULL
+                sec = NULL,
+                `enrich-dir` = NULL
             ),
             cli = reactiveValues(
                 fct = "chol_efflux",
@@ -48,6 +49,7 @@ SidebarPanel = R6Class(
                     menuItem(
                         "Glycoproteome",
                         menuSubItem("Boxplot", tabName = "glc-lm"),
+                        menuSubItem("Enrichment", tabName = "glc-enrich"),
                         menuSubItem("vs Clinical Values", tabName = "glc-cli"),
                         menuSubItem("vs HDL Function", tabName = "glc-fct"),
                         menuSubItem("vs SEC", tabName = "glc-sec")
@@ -164,6 +166,15 @@ SidebarPanel = R6Class(
                         )
                     )
                 }
+                if(input$tab == "glc-enrich"){
+                    inputs = tagList(
+                        selectInput(
+                            session$ns("enrich-dir"),
+                            "Increase or Decrease:",
+                            choices = c("increase", "decrease")
+                        )
+                    )
+                }
                 inputs
             })
             
@@ -188,6 +199,9 @@ SidebarPanel = R6Class(
                     })
                     observeEvent(input$`sec-var`, {
                         self$emit$glc$sec  = input$`sec-var`
+                    })
+                    observeEvent(input$`enrich-dir`, {
+                        self$emit$glc$`enrich-dir` = input$`enrich-dir`
                     })
                 }
                 if(input$tab == "cli-lm"){

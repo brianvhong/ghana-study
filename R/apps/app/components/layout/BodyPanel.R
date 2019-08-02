@@ -2,6 +2,7 @@
 import::here(ChromatogramPage, .from="../pages/ChromatogramPage.R")
 import::here(BoxplotPage, .from="../pages/_BoxplotPage.R")
 import::here(ScatterplotPage, .from="../pages/_ScatterplotPage.R")
+import::here(GlcEnrichment, .from="../pages/GlcEnrichmentPage.R")
 
 BodyPanel = R6Class(
     "BodyPanel",
@@ -13,6 +14,7 @@ BodyPanel = R6Class(
         lpdFct = NULL,
         lpdCli = NULL,
         glcBoxplot = NULL,
+        glcEnrichment = NULL,
         glcFct = NULL,
         glcCli = NULL,
         glcSec = NULL,
@@ -32,6 +34,7 @@ BodyPanel = R6Class(
             self$lpdFct = ScatterplotPage$new("lpd-fct")
             self$lpdCli = ScatterplotPage$new("lpd-cli")
             self$glcBoxplot = BoxplotPage$new("glc")
+            self$glcEnrichment = GlcEnrichment$new()
             self$glcFct = ScatterplotPage$new("glc-fct")
             self$glcCli = ScatterplotPage$new("glc-cli")
             self$glcSec = ScatterplotPage$new("glc-sec")
@@ -55,6 +58,7 @@ BodyPanel = R6Class(
                         tabItem("lpd-cli", self$lpdCli$ui()),
                         tabItem("lpd-fct", self$lpdFct$ui()),
                         tabItem("glc-lm", self$glcBoxplot$ui()),
+                        tabItem("glc-enrich", self$glcEnrichment$ui()),
                         tabItem("glc-cli", self$glcCli$ui()),
                         tabItem("glc-fct", self$glcFct$ui()),
                         tabItem("glc-sec", self$glcSec$ui()),
@@ -142,6 +146,12 @@ BodyPanel = R6Class(
                                 y_var = sec
                             ))
                         }
+                    }
+                    if(!is.null(dir <- props$glc$`enrich-dir`)){
+                        self$glcEnrichment$call(props = reactiveValues(
+                            data = data$data$glc$glycan_apoa1,
+                            direction = dir
+                        ))
                     }
                 } else if(props$tab == "fct-lm") {
                     if(!is.null(alter <- props$fct$alter)){

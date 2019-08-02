@@ -246,6 +246,31 @@ fdata = data.frame(
     mutate(
         pool_cv = pool_sd / pool_mean
     )
+
+glycans = lapply(fdata$Glycan, function(glycan){
+    if(grepl("/", glycan)){
+        glycan = str_split(glycan, "/")[[1]]
+        glycan = lapply(glycan, function(g){
+            strsplit(g, "")[[1]]
+        })
+        Hex = ifelse(glycan[[1]][1] == glycan[[2]][1], glycan[[1]][1], NA)
+        HexNAc = ifelse(glycan[[1]][2] == glycan[[2]][2], glycan[[1]][2], NA)
+        Fuc = ifelse(glycan[[1]][3] == glycan[[2]][3], glycan[[1]][3], NA)
+        Neu5Ac = ifelse(glycan[[1]][4] == glycan[[2]][4], glycan[[1]][4], NA)
+    }else{
+        glycan = strsplit(glycan, "")[[1]]
+        Hex = glycan[1]
+        HexNAc = glycan[2]
+        Fuc = glycan[3]
+        Neu5Ac = glycan[4]
+    }
+    res = as.integer(c(Hex, HexNAc, Fuc, Neu5Ac))
+    names(res) = c("Hex", "HexNAc", "Fuc", "Neu5Ac")
+    return(res)
+})
+glycans = do.call(rbind, glycans)
+fdata = cbind(fdata, glycans)
+
 rownames(fdata) = rownames(glc)
 glc = GlycomicsSet(
     conc_table = conc_table(as.matrix(glc)),

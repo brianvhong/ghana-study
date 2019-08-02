@@ -199,6 +199,9 @@ fct_sec = lapply(c("hdl_raw", "hdl_prop"), function(name) {
     MatCor(fct$conc_table, sec[[name]]$conc_table, "pearson")
 })
 
+## -------- enrichment analysis ------------------------------------------------
+
+
 ## -------- save out -----------------------------------------------------------
 
 data = list(
