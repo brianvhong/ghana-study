@@ -171,7 +171,8 @@ SidebarPanel = R6Class(
                         selectInput(
                             session$ns("enrich-dir"),
                             "Increase or Decrease:",
-                            choices = c("increase", "decrease")
+                            choices = c("increase", "decrease"),
+                            selected = "decrease"
                         )
                     )
                 }

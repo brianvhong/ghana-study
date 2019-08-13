@@ -129,11 +129,16 @@ GlcEnrichment = R6Class(
                 melt(id.vars = c("variable", "change"), variable.name = "mixed_variable") %>%
                 tidyr::separate(col = "mixed_variable", sep = "_", into = c("flipgroup", "valuevar")) %>%
                 dcast(variable + flipgroup + change ~ valuevar) %>%
-                ggplot(aes(x = variable, y = mean, fill = flipgroup, alpha = compare(change, 0))) +
+                ggplot(aes(
+                    x = variable, y = mean, fill = flipgroup,
+                    alpha = compare(change, 0) %>% factor(levels = c(TRUE, FALSE))
+                )) +
                 geom_col(position = "dodge") +
-                geom_errorbar(aes(ymin = mean - stderr, ymax = mean + stderr), position = position_dodge(0.9)) +
-                #scale_y_log10() +
-                scale_alpha_manual(values = c(1, 0.3)) +
+                geom_errorbar(
+                    aes(ymin = mean - stderr, ymax = mean + stderr),
+                    position = position_dodge(0.9)
+                ) +
+                scale_alpha_manual(values = c(1, 0.3), breaks = c(TRUE, FALSE)) +
                 guides(alpha = guide_legend(title = direction)) +
                 coord_flip()
         }
