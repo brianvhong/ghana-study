@@ -91,9 +91,30 @@ cli_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17] %>%
     ) %>%
     as.data.frame %>%
     column_to_rownames("sample_id")
+
+cli_data2 = read_csv("../raw_data/ghana_anthro12m_20190813.csv") %>%
+    as.data.frame %>%
+    column_to_rownames("id")
+cli_data2 = cli_data2[rownames(cli_data),]
+
+cli_data = cbind(cli_data, cli_data2)
+
 vars = c("wid", "totschyrs", "malaria", "SeasonEnr", "AssetQuintile", "flipgroup", "sex_updated")
 pdata = cli_data[,vars]
-edata = cli_data[,!(colnames(cli_data) %in% vars)] %>% t
+edata = cli_data[,!(colnames(cli_data) %in% vars)]
+edata = edata[, c(
+    which(!grepl("[a-z]{2}z1[28]{1}", colnames(edata))),
+    which(grepl("[a-z]{2}z1[28]{1}", colnames(edata)))
+)] %>%
+    rownames_to_column("id") %>%
+    mutate(
+        `waz18-12` = waz18 - waz12,
+        `laz18-12` = laz18 - laz12,
+        `wlz18-12` = wlz18 - wlz12,
+        `hcz18-12` = hcz18 - hcz12
+    ) %>%
+    column_to_rownames("id") %>% t
+
 cli = MultxSet(
     conc_table = conc_table(edata),
     sample_table = sample_table(pdata)
