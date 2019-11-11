@@ -149,7 +149,7 @@ BodyPanel = R6Class(
                     }
                     if(!is.null(dir <- props$glc$`enrich-dir`)){
                         self$glcEnrichment$call(props = reactiveValues(
-                            data = data$data$glc$glycan_apoa1,
+                            data = data$data$glc$glycan_pep,
                             direction = dir
                         ))
                     }

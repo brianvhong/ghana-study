@@ -1,0 +1,534 @@
+---
+title: "iLiNS-DYAD HDL and Growth Association Analysis"
+author: "Chenghao Zhu"
+date: "`r strftime(Sys.time(), '%Y-%m-%d')`"
+output: 
+  html_document:
+    code_folding: show
+---
+
+<script>
+// enable toggle for navs
+$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+  var target = $(e.target).attr("href") // activated tab
+  alert(target);
+});
+</script>
+
+<style type="text/css">
+code {
+  font-family: monaco;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For each predictor variable $x$ and outcome variable $y$, we want to test whether $x$ is associated with $y$. An unajusted linear model and an adjusted linear model is fit in order to test the hypothesis. The unadjusted linear model contains only the predictor variable, while the adjusted model also contains covariate variables. The two models are below.
+
+* Unadjusted model: 
+$$y = \beta_0 + \beta_1 x$$
+* Adjusted model: 
+$$y = \beta_0 + \beta_1 x + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k$$
+
+$y$ is any outcome variable from the outcome matrix $Y$. $x$ is any predictor variable from the predictor matrix $X$. $\beta_0$ is the intercept, and $\beta_1$ is the slop. $z_1$ to $z_k$ are covariate variables selected, and $\gamma_1$ to $\gamma_k$ are the corresponding coefficients to covariate vairables.
+
+Hypothesis test will be performed on $\beta_1$ against 0 for each $x$. If p < 0.05, we reject the null hypothesis and accept the alternative hypothesis that $x$ is associated with $y$.
+
+For any given pair of $x$ and $y$, the covariate variables ($z$) are selected using two criterias in order to be included in the adjusted model.
+
+1. $z$ is significantly correlated with $y$
+2. $z$ is significnat as a covariatein the complete model.
+
+<div class="alert alert-info" style="padding: 2re;">The result can be downloaded as a Excel file using the button in the bottom of the page. Click <a href="#btn-download" style="color: #e8731a;">here</a> to locate it.</div>
+
+## Step 1: define variables
+
+Outcome variables in this analysis are child growth outcomes at 18 months and the change from 12 to 18 months. The outcome variables are:
+
+* hcz18
+* hcz1812
+* laz18
+* laz1812
+* waz18
+* waz1812
+* wlz18
+* wlz1812
+
+Predictor variables are HDL functions and composition variables.
+
+* HDL cholesterol efflux
+* HDL lipidome surface to core lipid ratio
+* HDL lipidome overall $\text{EOD}_{\text{18}}$
+* HDL lipidome overall ACL
+* HDL ApoA1
+* HDL SSA1
+* HDL SSA2
+* HDL ApoL1
+
+Covariates are:
+
+* Any episodes from 6 to 18 months
+* Air respiratory infection episodes from 6 to 18 months
+* Asset Index
+* Fever episodes from 6 to 18 months
+* Gestational age at enrolment (wk)
+* HFIA Score
+* Housing Index
+* Loose episodes from 6 to 18 months
+* Maternal malaria
+* MB Hb conc. g/L
+* Mom's height (cm)
+* Poor appetite episodes from 6 to 18 months
+* Prepregnant BMI
+* Sex updated
+* Years of formal education (y)
+* Maternal age
+
+```{r}
+pkgs=c("dplyr", "reshape2", "tibble", "ggplot2", "Metabase", "knitr", "kableExtra")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only=TRUE))
+}
+options(stringsAsFactors = FALSE)
+```
+
+```{r}
+load("../apps/app/data/data.rda")
+# define outcome variables
+vars_outcomes = c("hcz18", "hcz1812", "laz18", "laz1812",
+                  "waz18", "waz1812", "wlz18", "wlz1812")
+df_outcomes = data$data$cli$conc_table[vars_outcomes,] %>% t %>% as.data.frame
+# define predictor variables
+df_predictors = rbind(
+    chol_efflux = data$data$fct$conc_table["chol_efflux",],
+    surface_core_ratio = data$data$lpd$ratios$conc_table["surface/core",],
+    eod_overall = data$data$lpd$eod$conc_table["EOD Overall",],
+    acl_overall = data$data$lpd$acl$conc_table["ACL Overall",],
+    data$data$glc$peptide$conc_table[c(
+        "pep-APOA1_LAEYHAK Results", 
+        "SAA1_GPGGVWAAEAISDAR_z3 Results",
+        "SAA2_GPGGAWAAEVISNAR_z3 Results",
+        "pep-APOL1_VTEPISAESGEQVER_z2 Results"
+    ),] %>%
+        `rownames<-`(c("apoa1", "saa1", "saa2", "apol1"))
+) %>% t %>% as.data.frame
+vars_predictors = colnames(df_predictors)
+# define covariate variables
+vars_covariates = data.frame(
+    name = c(
+        'anyepisodes_6to18', 'ariepisodes_6to18', 'asset1',
+        'feverepisodes_6to18', 'gaatdel', 'hfia', 'housing1',
+        'looseepisodes_6to18', 'malaria', 'mbhb', 'momht',
+        'poorappetiteepisodes_6to18', 'ppregbmi', 'sex_updated', 'totschyrs',
+        'ws2WomanAge'
+    ),
+    description = c(
+        "Any episodes from 6 to 18 months",
+        "Air respiratory infection episodes from 6 to 18 months",
+        "Asset Index",
+        "Fever episodes from 6 to 18 months",
+        "Gestational age at enrolment (wk)",
+        "HFIA Score",
+        "Housing Index",
+        "Loose episodes from 6 to 18 months",
+        "Maternal malaria",
+        "MB Hb conc. g/L",
+        "Mom's height (cm)",
+        "Poor appetite episodes from 6 to 18 months",
+        "Prepregnant BMI",
+        "Sex updated",
+        "Years of formal education (y)",
+        "Maternal age"
+    )
+)
+df_covariates = data$data$cli$sample_table[,vars_covariates$name]
+flipgroup = data$data$cli$sample_table$flipgroup
+```
+
+
+<div style="display: block"><a class="btn btn-danger btn-xs" role="button" data-toggle="collapse" href="#util-functions" aria-expanded="false" aria-controls="collapseExample" style="float: right;">
+util functions
+</a></div>
+<div class="collapse" id="util-functions">
+```{r}
+pretty_table = function(df){
+    df %>% as.data.frame %>%
+        rownames_to_column("response") %>%
+        melt(id.vars = "response") %>%
+        mutate(value = round(value, 4)) %>%
+        mutate(value = ifelse(is.na(value), ".", value)) %>%
+        mutate(value = sapply(value, function(p){
+            if(p == ".") color = ""
+            else if(p < 0.05) color = "yellow"
+            else if(p < 0.1) color = "orange"
+            else color = ""
+            cell_spec(p, 'html', background = color)
+        }))%>%
+        dcast(response ~ variable) %>%
+        kable(format = "html", escape = FALSE, align = 'c') %>% 
+        kable_styling("striped") %>%
+        column_spec(1, bold = T, background = "#ABABAB", color = "black") %>%
+        scroll_box(width = "100%")
+}
+pretty_table2 = function(df){
+    df %>% as.data.frame %>% 
+        mutate_if(is.numeric, function(x){
+            sapply(x, function(xx){
+                if(abs(xx) > 0.0001) round(xx, 4)
+                else formatC(xx, format="e", digit = 2)
+            })
+        }) %>%
+        mutate(Pval = sapply(Pval, function(p){
+            if(p < 0.05) color = "yellow"
+            else if(p < 0.1) color = "orange"
+            else color = ""
+            cell_spec(p, 'html', background = color)
+        }))%>%
+        kable(format = "html", escape = FALSE, align = 'c') %>% 
+        kable_styling("striped") %>%
+        column_spec(1, bold = T, background = "#ABABAB", color = "black") %>%
+        scroll_box(width = "100%")
+}
+naved_table = function(tables, names, id){
+    html = glue::glue('<ul class="nav nav-pills nav-justified" id="{id}" role="tablist">')
+    for(i in seq_along(names)){
+        html = html + glue::glue('
+        <li role="nav-item" {ifelse(i == 1, "class=\\"active\\"", "")}>
+            <a class="nav-link {ifelse(i == 1, "active", "")}" 
+                id="{id}-{names[i]}-tab" 
+                data-toggle="tab" 
+                href="#{id}-{names[i]}" 
+                role="tab" 
+                aria-controls="{id}-{names[i]}" 
+                aria-selected="{ifelse(i == 1, "true", "false")}">
+                    {names[i]}
+            </a>
+        </li>
+        ')
+    }
+    html = html + '</ul>'
+    html = html + glue::glue('<div class="tab-content" id="{id}">')
+    for(i in seq_along(names)){
+        html = html + glue::glue('
+        <div 
+            class="tab-pane fade {ifelse(i == 1, "in active", "")}" 
+            id="{id}-{names[i]}" 
+            role="tabpanel" 
+            aria-labelledby="{id}-{names[i]}-tab">
+                {tables[[i]]}
+        </div>               
+        ')
+    }
+    html = html + '</div>'
+    html = gsub("[[:space:]]+", " ", html)
+    return(html)
+}
+```
+</div>
+
+
+## Step 2: bivarate covariates vs outcomes
+
+In order to select covariates in the adjusted models, pearson's correlation was first performed on each pair of **covariate** $z$ and **outcome variabe** $y$. The result is show in the table below. The p values calculated match with Chale's calculation.
+
+```{r}
+bivar = lapply(df_covariates, function(x){
+    if(!is.numeric(x)){
+        x = as.numeric(x)
+    }
+    lapply(df_outcomes, function(y){
+        res = cor.test(x, y)
+        p = res$p.value
+        r = res$estimate %>% `names<-`(NULL)
+        return(c(p = p, r = r))
+    }) %>%
+        do.call(rbind, .)
+})
+bivar = lapply(c("p", "r"), function(param){
+    sapply(bivar, function(xx){
+        return(xx[,param])
+    })
+}) %>%
+    `names<-`(c("p", "r"))
+pretty_table(bivar$p)
+```
+
+## Step 3: Covariate
+
+Next, a complete model was fit between any **predictor variable** $x$ and **outcome variable** $y$, with any covariates $z$ that is significant in step 2.
+
+```{r}
+covar = lapply(vars_predictors, function(predictor){
+    x = df_predictors[,predictor]
+    res = lapply(vars_outcomes, function(outcome){
+        y = df_outcomes[,outcome]
+        covariates = vars_covariates$name[bivar$p[outcome,] < 0.1]
+        design = data.frame(flipgroup = as.numeric(flipgroup) - 1, x = x) %>%
+            cbind(df_covariates[,covariates, drop=FALSE]) %>%
+            as.matrix
+        fit = lm(y ~ design)
+        fit = summary(fit)$coef
+        rownames(fit) = gsub('design', '', rownames(fit))
+        res = sapply(vars_covariates$name, function(x){
+            if(x %in% covariates){
+                return(fit[x, "Pr(>|t|)"])
+            } else {
+                return(NA)
+            }
+        })
+        return(res)
+    }) %>%
+        do.call(rbind, .) %>%
+        `rownames<-`(vars_outcomes)
+    return(res)
+}) %>%
+    `names<-`(vars_predictors)
+```
+
+The tables below shows the p value of each covariate $z$ in the complete model. 
+
+```{r, results='asis'}
+naved_table(lapply(covar, pretty_table), names(covar), id="tab-covar")
+```
+<div class="alert alert-warning" style="padding: 2re">Click on the tabs to see result of different predictor variables.</div>
+
+## Step 3: Fit the models
+
+Evantually, the adjusted model was built for any given **outcome variable** $y$ and **predictor variable** $x$. The covariate used in any adjusted model must have a p value < 0.1 in step 2, and a p value < 0.05 in step 3. 
+
+```{r}
+fits = lapply(vars_predictors, function(predictor){
+    x = df_predictors[,predictor]
+    lapply(vars_outcomes, function(outcome){
+        y = df_outcomes[, outcome]
+        # unadjusted model
+        design = data.frame(flipgroup = as.numeric(flipgroup) - 1, x = x) %>%
+            as.matrix()
+        fit1 = lm(y ~ design)
+        ci1 = formatC(confint(fit1)["designx",], format='e', digits = 2)
+        fit1 = summary(fit1)
+        coef1 = fit1$coef["designx",]
+        r_squared_1 = fit1$r.squared
+        adj_r_squared_1 = fit1$adj.r.squared
+        # adjusted model
+        covariates = vars_covariates$name[!is.na(covar[[predictor]][outcome,]) &
+                                          covar[[predictor]][outcome,] < 0.05]
+        design = design %>%
+            cbind(df_covariates[,covariates]) %>%
+            as.matrix
+        fit2 = lm(y ~ design)
+        ci2 = formatC(confint(fit2)["designx",], format='e', digits = 2)
+        fit2 = summary(fit2)
+        coef2 = fit2$coef["designx",]
+        r_squared_2 = fit2$r.squared
+        adj_r_squared_2 = fit2$adj.r.squared
+        # combine results
+        cis = c(
+            paste0('(',paste(ci1, collapse = ',\t'),")"),
+            paste0('(',paste(ci2, collapse = ',\t'),")")
+        )
+        r_squreds = c(r_squared_1, r_squared_2)
+        adj_r_squared = c(adj_r_squared_1, adj_r_squared_2)
+        
+        fit = rbind(coef1, coef2) %>% as.data.frame %>% `rownames<-`(NULL)
+        fit = cbind(outcome, c("Unadjusted", "Adjusted"),
+                    fit, cis, r_squreds, adj_r_squared)
+        fit = fit[,c(1,2,3,4,5,7,8,9,6)]
+        colnames(fit) = c("Response", "Model", "Beta 1", "Standard Error", "t value",
+                          "95% CI", "R-squred", "Adjusted R-squared", "Pval")
+        return(fit)
+    }) %>%
+        do.call(rbind, .)
+}) %>%
+    `names<-`(vars_predictors)
+```
+
+
+```{r results='asis'}
+naved_table(lapply(fits, pretty_table2), names(fits), id="tab-fits")
+```
+<div class="alert alert-warning" style="padding: 2re">Click on the tabs to see result of different predictor variables.</div>
+
+
+<div style="display: block">
+<a class="btn btn-info btn-xs" href="DYADG_HDL_associations_20191109.xlsx" id="btn-download">Download Excel</a>
+<a class="btn btn-danger btn-xs" role="button" data-toggle="collapse" href="#excel" aria-expanded="false" aria-controls="excel" style="float: right;">
+export to excel
+</a>
+</div>
+<div class="collapse" id="excel">
+```{r}
+Sys.setenv(JAVA_HOME='/Library/Java/JavaVirtualMachines/jdk-11.0.1.jdk/Contents/Home')
+library(xlsx)
+# Association
+wb = createWorkbook(type='xlsx')
+CELL_SIGNIFICANT_STYLE1 = CellStyle(wb) + 
+    Fill(foregroundColor="yellow", backgroundColor="yellow", pattern="SOLID_FOREGROUND")
+CELL_SIGNIFICANT_STYLE2 = CellStyle(wb) + 
+    Fill(foregroundColor="orange", backgroundColor="orange", pattern="SOLID_FOREGROUND")
+HEADER_STYLE = CellStyle(wb) + 
+    Font(wb, isBold = TRUE) +
+    Fill(foregroundColor="#EFEFEF", backgroundColor="#EFEFEF", pattern="SOLID_FOREGROUND")
+
+border = function(position){
+    return(Border(color = "black", position = position, pen = "BORDER_THIN"))
+}
+
+df_fits = do.call(rbind, fits) %>%
+    rownames_to_column("Predictor") %>%
+    mutate(Predictor = gsub("\\.1$", "", Predictor)) %>%
+    mutate(Predictor = ifelse(
+        grepl("\\.\\d+", Predictor), "", Predictor
+    ))
+df_fits$Response[seq(2, by=2, length.out = nrow(df_fits)/2)] = ""
+# create sheet
+sheet = createSheet(wb, sheetName = "Associations")
+# add fit data
+addDataFrame(df_fits, sheet, startRow = 1, startColumn = 1, row.names=FALSE)
+# set column width
+setColumnWidth(sheet, colIndex = 1:ncol(df_fits), colWidth = 15)
+# set cell size
+rows = getRows(sheet)
+cells = getCells(rows)
+
+for(i in seq_len(nrow(df_fits) + 1)){
+    for(j in seq_len(ncol(df_fits))){
+        style = CellStyle(wb)
+        if(i == 1){
+            if(j == 1){
+                style = HEADER_STYLE + border(c("TOP", "BOTTOM", "RIGHT", "LEFT"))
+            } else if(j != ncol(df_fits)) {
+                style = HEADER_STYLE + border(c("TOP", "BOTTOM"))
+            } else{
+                style = HEADER_STYLE + border(c("TOP", "BOTTOM", "RIGHT"))
+            }
+        } else if(i %% (length(vars_outcomes) * 2) != 1){
+            if(j == 1){
+                style = HEADER_STYLE + border(c("RIGHT", "LEFT"))
+            } else if(j == ncol(df_fits)) {
+                if(df_fits[i-1, j] < 0.05){
+                    style = CELL_SIGNIFICANT_STYLE1 + border("RIGHT")
+                } else if (df_fits[i-1, j] < 0.1){
+                    style = CELL_SIGNIFICANT_STYLE2 + border("RIGHT")
+                } else {
+                    style = style + border("RIGHT")
+                }
+            }
+        } else {
+            if(j == 1){
+                style = HEADER_STYLE + border(c("BOTTOM", "RIGHT", "LEFT"))
+            } else if (j != ncol(df_fits)) {
+                style = style + border("BOTTOM")
+            } else {
+                if(df_fits[i-1, j] < 0.05){
+                    style = CELL_SIGNIFICANT_STYLE1 + border(c("RIGHT", "BOTTOM"))
+                } else if (df_fits[i-1, j] < 0.1){
+                    style = CELL_SIGNIFICANT_STYLE2 + border(c("RIGHT", "BOTTOM"))
+                } else {
+                    style = style + border(c("RIGHT", "BOTTOM"))
+                }
+            }
+        }
+        setCellStyle(cells[[(i-1) * ncol(df_fits) + j]], style)
+    }
+}
+
+# Model Selection
+df_bivar = data.frame(
+    pvalgroup = c("Bivariate", rep("", nrow(bivar$p)-1)),
+    response = rownames(bivar$p),
+    bivar$p
+)
+df_covars = lapply(names(covar), function(x){
+    data.frame(
+        pvalgroup = c(x, rep("", nrow(covar[[x]]) - 1)),
+        response = rownames(covar[[x]]),
+        covar[[x]]
+    )
+}) %>%
+    do.call(rbind, .) %>%
+    rbind(df_bivar, .) %>%
+    mutate_if(is.numeric, function(x){
+        x = as.character(round(x, 4))
+        x = ifelse(is.na(x), ".", x)
+        return(x)
+    })
+# create sheet
+sheet = createSheet(wb, sheetName = "ModelSelection")
+# add fit data
+addDataFrame(df_covars, sheet, startRow = 1, startColumn = 1, row.names=FALSE)
+# set column width
+setColumnWidth(sheet, colIndex = c(1:ncol(df_covars)), colWidth = 15)
+# set cell size
+rows = getRows(sheet)
+cells = getCells(rows)
+# set background color for significants
+for(i in seq_len(nrow(df_covars) + 1)){
+    for(j in seq_len(ncol(df_covars))){
+        style = CellStyle(wb)
+        if(i == 1){
+            if(j <= 2){
+                style = HEADER_STYLE + border(c("TOP", "BOTTOM", "RIGHT", "LEFT"))
+            } else if(j != ncol(df_covars)) {
+                style = HEADER_STYLE + border(c("TOP", "BOTTOM"))
+            } else{
+                style = HEADER_STYLE + border(c("TOP", "BOTTOM", "RIGHT"))
+            }
+        } else if(i %% length(vars_outcomes) != 1){
+            if(j <= 2){
+                style = HEADER_STYLE + border(c("RIGHT", "LEFT"))
+            } else if(j != ncol(df_covars)) {
+                if(df_covars[i-1, j] != "."){
+                    if(as.numeric(df_covars[i-1, j]) < 0.05){
+                        style = CELL_SIGNIFICANT_STYLE1
+                    } else if (as.numeric(df_covars[i-1, j]) < 0.1){
+                        style = CELL_SIGNIFICANT_STYLE2
+                    }
+                }
+            } else if(j == ncol(df_covars)) {
+                if(df_covars[i-1, j] != "."){
+                    if(as.numeric(df_covars[i-1, j]) < 0.05){
+                        style = CELL_SIGNIFICANT_STYLE1
+                    } else if (as.numeric(df_covars[i-1, j]) < 0.1){
+                        style = CELL_SIGNIFICANT_STYLE2
+                    }
+                }
+                style = style + border("RIGHT")
+            }
+        } else {
+            if(j <= 2){
+                style = HEADER_STYLE + border(c("BOTTOM", "RIGHT", "LEFT"))
+            } else if(j != ncol(df_covars)) {
+                if(df_covars[i-1, j] != "."){
+                    if(as.numeric(df_covars[i-1, j]) < 0.05){
+                        style = CELL_SIGNIFICANT_STYLE1 
+                    } else if (as.numeric(df_covars[i-1, j]) < 0.1){
+                        style = CELL_SIGNIFICANT_STYLE2
+                    }
+                }
+                style = style + border("BOTTOM")
+            } else if(j == ncol(df_covars)) {
+                if(df_covars[i-1, j] != "."){
+                    if(as.numeric(df_covars[i-1, j]) < 0.05){
+                        style = CELL_SIGNIFICANT_STYLE1
+                    } else if (as.numeric(df_covars[i-1, j]) < 0.1){
+                        style = CELL_SIGNIFICANT_STYLE2
+                    }
+                }
+                style = style + border(c("RIGHT", "BOTTOM"))
+            }
+        }
+        setCellStyle(cells[[(i-1) * ncol(df_covars) + j]], style)
+    }
+}
+
+saveWorkbook(wb, '../reports/DYADG_HDL_associations_20191109.xlsx')
+```
+</div>
+
+```{r}
+sessionInfo()
+```
+

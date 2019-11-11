@@ -1,11 +1,10 @@
+setwd(dirname(parent.frame(2)$ofile))
 pkgs = c("dplyr", "reshape2", "stringr", "tidyr", "tibble",
          "Metabase", "readxl","readr", "zeallot")
 for(pkg in pkgs){
     library(pkg, character.only = TRUE, warn.conflicts = FALSE, 
             quietly = TRUE, verbose = FALSE)
 }
-
-setwd(dirname(parent.frame(2)$ofile))
 
 ################################################################################
 ##########                      L I P I D O M E                       ##########
@@ -83,7 +82,7 @@ sampleNames(lpd) = gsub("Ghana ", "ghana_", sampleNames(lpd))
 ##########                      Clinical Values                       ##########
 ################################################################################
 ## read additional sample data
-cli_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17] %>%
+cli_data = read_csv("../raw_data/dyadg_hdl_covdat_20191109.csv") %>%
     mutate(
         flipgroup = factor(flipgroup),
         sample_id = paste0("ghana_", wid),
@@ -92,14 +91,20 @@ cli_data = read_csv("../raw_data/lipidomics_20180910.csv")[,1:17] %>%
     as.data.frame %>%
     column_to_rownames("sample_id")
 
-cli_data2 = read_csv("../raw_data/ghana_anthro12m_20190813.csv") %>%
-    as.data.frame %>%
-    column_to_rownames("id")
-cli_data2 = cli_data2[rownames(cli_data),]
+# # Data no longer needed
+# cli_data2 = read_csv("../raw_data/ghana_anthro12m_20190813.csv") %>%
+#     as.data.frame %>%
+#     column_to_rownames("id")
+# cli_data2 = cli_data2[rownames(cli_data),]
+# 
+# cli_data = cbind(cli_data, cli_data2)
 
-cli_data = cbind(cli_data, cli_data2)
-
-vars = c("wid", "totschyrs", "malaria", "SeasonEnr", "AssetQuintile", "flipgroup", "sex_updated")
+vars = c('wid', 'flipgroup', 'ppregbmi', 'ws2WomanAge', 'totschyrs', 'momht',
+         'under5', 'hfia', 'primip', 'gaatdel', 'asset1', 'housing1', 'malaria',
+         'mbhb', 'sex_updated', 'anyepisodes_6to18', 'feverepisodes_6to18',
+         'looseepisodes_6to18', 'ariepisodes_6to18',
+         'poorappetiteepisodes_6to18', 'ffqmeat7', 'ffqeggs7', 'ffqfish7',
+         'ffqdairy7', 'ffqfat7', 'ffqpalm7', 'asf7sum', 'flesh7sum', 'fat_all7')
 pdata = cli_data[,vars]
 edata = cli_data[,!(colnames(cli_data) %in% vars)]
 edata = edata[, c(
@@ -404,7 +409,7 @@ glc = lapply(glc, function(li){
     li = subset_samples(li, sampleNames(lpd))
     li$sample_table = sample_table(cbind(
         li$sample_table,
-        lpd$sample_table[,c("wid","totschyrs","malaria","SeasonEnr","AssetQuintile","flipgroup","sex_updated")]
+        lpd$sample_table[,c("wid", "flipgroup","sex_updated")]
     ))
     return(li)
 })

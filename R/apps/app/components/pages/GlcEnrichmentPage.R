@@ -41,7 +41,7 @@ GlcEnrichment = R6Class(
                     width = 6,
                     box(
                         width = NULL,
-                        plotlyOutput(ns("plot"))
+                        plotOutput(ns("plot"))
                     )
                 )
             )
@@ -61,7 +61,7 @@ GlcEnrichment = R6Class(
                     formatSignif(columns = 6, digits = 4)
             })
             
-            output$plot = renderPlotly({
+            output$plot = renderPlot({
                 protein = unique(props$data$feature_data$Protein)[input$table_rows_selected]
                 self$plot(props$data, protein, props$direction)
             })
@@ -136,7 +136,8 @@ GlcEnrichment = R6Class(
                 geom_col(position = "dodge") +
                 geom_errorbar(
                     aes(ymin = mean - stderr, ymax = mean + stderr),
-                    position = position_dodge(0.9)
+                    position = position_dodge(0.9),
+                    width = 0.25
                 ) +
                 scale_alpha_manual(values = c(1, 0.3), breaks = c(TRUE, FALSE)) +
                 guides(alpha = guide_legend(title = direction)) +

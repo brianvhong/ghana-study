@@ -1,0 +1,102 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+pkgs=c("dplyr", "reshape2", "tibble", "ggplot2", "psych", "GPArotation")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only=TRUE))
+}
+```
+
+
+```{r}
+load("../apps/app/data/data.rda")
+glc = data$data$glc$glycan_pep
+edata = apply(glc$conc_table, 1, scale)
+```
+
+
+```{r}
+fapar = fa.parallel(edata, fa = "fa", fm = "minres")
+```
+
+
+```{r}
+factors = fa(edata, nfactors = 11, fm = "pa")
+```
+
+```{r}
+data.frame(
+    explained = factors$e.values / length(factors$e.values) * 100
+) %>%
+    head(79) %>%
+    mutate(factor = seq_along(explained)) %>% 
+    ggplot() +
+    geom_col(aes(x = factor, y = explained), color = "white", fill = "grey5") +
+    labs(y = "variance explained (%)") +
+    theme_bw()
+```
+
+
+```{r}
+scores = t(factors$scores)
+colnames(scores) = Metabase::sampleNames(glc)
+facSet = MultxSet(
+    conc_table = conc_table(scores),
+    sample_table = sample_table(glc)
+)
+design = model.matrix(~ flipgroup, data = as(facSet$sample_table, "data.frame"))
+lm = mSet_limma(facSet, design, transform = I, coef = 2)
+lm[order(lm$pvalue),]
+```
+
+```{r}
+data.frame(
+    t(facSet$conc_table),
+    flipgroup = facSet$sample_table$flipgroup
+) %>%
+    ggplot(aes(x = flipgroup, y =PA2)) +
+    geom_violin(aes(fill = flipgroup), alpha = 0.15) +
+    geom_boxplot(aes(fill = flipgroup), width = 0.3) +
+    stat_boxplot(geom = "errorbar", width = 0.15)
+```
+
+
+```{r}
+hist(factors$loadings[,"MR2"], breaks = 20)
+```
+
+
+```{r}
+mr = factors$loadings[,"PA2"]
+mr = mr[abs(mr) > 0.5]
+mr = mr[order(mr, decreasing = TRUE)]
+mr
+```
+
+
+```{r}
+corRes = MatCorR::MatCor(data$data$cli$conc_table, facSet$conc_table, method = "pearson")
+```
+
+```{r}
+corRes$`waz18-12` %>%
+    rownames_to_column("factor") %>%
+    arrange(pval)
+```
+
+
+```{r}
+cbind(
+    as.data.frame(t(data$data$cli$conc_table)),
+    as.data.frame(t(facSet$conc_table))
+) %>% 
+    mutate(flipgroup = facSet$sample_table$flipgroup) %>%
+    ggplot(aes(x = MR4, y = `waz18-12`)) +
+    geom_point(aes(color = flipgroup)) +
+    stat_smooth(method = "lm")
+    
+```
+
