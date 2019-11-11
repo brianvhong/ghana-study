@@ -5,7 +5,11 @@ date: "`r strftime(Sys.time(), '%Y-%m-%d')`"
 output: 
   html_document:
     code_folding: show
+    toc: true
+    toc_float: true
 ---
+
+<hr>
 
 <script>
 // enable toggle for navs
@@ -19,6 +23,12 @@ $('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
 code {
   font-family: monaco;
 }
+body p{
+    font-size: 12pt
+}
+body li {
+    font: 12pt
+}
 </style>
 
 ```{r setup, include=FALSE}
@@ -28,11 +38,11 @@ knitr::opts_chunk$set(echo = TRUE)
 For each predictor variable $x$ and outcome variable $y$, we want to test whether $x$ is associated with $y$. An unajusted linear model and an adjusted linear model is fit in order to test the hypothesis. The unadjusted linear model contains only the predictor variable, while the adjusted model also contains covariate variables. The two models are below.
 
 * Unadjusted model: 
-$$y = \beta_0 + \beta_1 x$$
+$$y = \beta_0 + \beta_1 x + \beta_2 t$$
 * Adjusted model: 
-$$y = \beta_0 + \beta_1 x + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k$$
+$$y = \beta_0 + \beta_1 x + \beta_2 t + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k$$
 
-$y$ is any outcome variable from the outcome matrix $Y$. $x$ is any predictor variable from the predictor matrix $X$. $\beta_0$ is the intercept, and $\beta_1$ is the slop. $z_1$ to $z_k$ are covariate variables selected, and $\gamma_1$ to $\gamma_k$ are the corresponding coefficients to covariate vairables.
+$y$ is any outcome variable from the outcome matrix $Y$. $x$ is any predictor variable from the predictor matrix $X$, and $t$ is the treatment group (IFA or LNS). The treatment group is included in the model in order to remove the variance that it causes. $\beta_0$ is the intercept, and $\beta_1$ is the slop. $z_1$ to $z_k$ are covariate variables selected, and $\gamma_1$ to $\gamma_k$ are the corresponding coefficients to covariate vairables.
 
 Hypothesis test will be performed on $\beta_1$ against 0 for each $x$. If p < 0.05, we reject the null hypothesis and accept the alternative hypothesis that $x$ is associated with $y$.
 
@@ -42,6 +52,8 @@ For any given pair of $x$ and $y$, the covariate variables ($z$) are selected us
 2. $z$ is significnat as a covariatein the complete model.
 
 <div class="alert alert-info" style="padding: 2re;">The result can be downloaded as a Excel file using the button in the bottom of the page. Click <a href="#btn-download" style="color: #e8731a;">here</a> to locate it.</div>
+
+<hr>
 
 ## Step 1: define variables
 
@@ -181,6 +193,7 @@ pretty_table2 = function(df){
             })
         }) %>%
         mutate(Pval = sapply(Pval, function(p){
+            p = as.numeric(p)
             if(p < 0.05) color = "yellow"
             else if(p < 0.1) color = "orange"
             else color = ""
@@ -228,6 +241,7 @@ naved_table = function(tables, names, id){
 ```
 </div>
 
+<hr>
 
 ## Step 2: bivarate covariates vs outcomes
 
@@ -235,9 +249,7 @@ In order to select covariates in the adjusted models, pearson's correlation was 
 
 ```{r}
 bivar = lapply(df_covariates, function(x){
-    if(!is.numeric(x)){
-        x = as.numeric(x)
-    }
+    x = as.numeric(x)
     lapply(df_outcomes, function(y){
         res = cor.test(x, y)
         p = res$p.value
@@ -255,16 +267,21 @@ bivar = lapply(c("p", "r"), function(param){
 pretty_table(bivar$p)
 ```
 
+<hr>
+
 ## Step 3: Covariate
 
-Next, a complete model was fit between any **predictor variable** $x$ and **outcome variable** $y$, with any covariates $z$ that is significant in step 2.
+Next, a complete model was fit between any **predictor variable** $x$ and **outcome variable** $y$, with any covariates $z$ that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS).
 
 ```{r}
 covar = lapply(vars_predictors, function(predictor){
     x = df_predictors[,predictor]
     res = lapply(vars_outcomes, function(outcome){
         y = df_outcomes[,outcome]
+        # find covariate variables with p smaller than 0.1 in step 2
         covariates = vars_covariates$name[bivar$p[outcome,] < 0.1]
+        # construct the design matrix, that contains the flipgroup, the
+        # predictor variabel x, and any covariates
         design = data.frame(flipgroup = as.numeric(flipgroup) - 1, x = x) %>%
             cbind(df_covariates[,covariates, drop=FALSE]) %>%
             as.matrix
@@ -294,9 +311,11 @@ naved_table(lapply(covar, pretty_table), names(covar), id="tab-covar")
 ```
 <div class="alert alert-warning" style="padding: 2re">Click on the tabs to see result of different predictor variables.</div>
 
-## Step 3: Fit the models
+<hr>
 
-Evantually, the adjusted model was built for any given **outcome variable** $y$ and **predictor variable** $x$. The covariate used in any adjusted model must have a p value < 0.1 in step 2, and a p value < 0.05 in step 3. 
+## Step 4: Fit the models
+
+Evantually, the adjusted model was built for any given **outcome variable** $y$ and **predictor variable** $x$. The covariate used in any adjusted model must have a <span style="color: red;">p value smaller than 0.1</span> in step 2, and a <span style="color: red;">p value smaller 0.05</span> in step 3. The adjusted model also contains the treatment group.
 
 ```{r}
 fits = lapply(vars_predictors, function(predictor){
@@ -527,6 +546,8 @@ for(i in seq_len(nrow(df_covars) + 1)){
 saveWorkbook(wb, '../reports/DYADG_HDL_associations_20191109.xlsx')
 ```
 </div>
+
+<hr>
 
 ```{r}
 sessionInfo()
