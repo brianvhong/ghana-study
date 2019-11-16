@@ -423,7 +423,7 @@ naved_table(lapply(fits, pretty_table2), names(fits), id="tab-fits")
 
 
 <div style="display: block">
-<a class="btn btn-info btn-xs" href="DYADG_HDL_associations_20191109.xlsx" id="btn-download">Download Excel</a>
+<a class="btn btn-info btn-xs" href="DYADG_HDL_associations_20191115.xlsx" id="btn-download">Download Excel</a>
 <a class="btn btn-danger btn-xs" role="button" data-toggle="collapse" href="#excel" aria-expanded="false" aria-controls="excel" style="float: right;">
 export to excel
 </a>
@@ -594,7 +594,7 @@ for(i in seq_len(nrow(df_covars) + 1)){
     }
 }
 
-saveWorkbook(wb, '../reports/DYADG_HDL_associations_20191109.xlsx')
+saveWorkbook(wb, '../reports/DYADG_HDL_associations_20191115.xlsx')
 ```
 </div>
 
