@@ -29,6 +29,9 @@ body p{
 body li {
     font: 12pt
 }
+table.table {
+    white-space: nowrap;
+}
 </style>
 
 ```{r setup, include=FALSE}
@@ -38,11 +41,11 @@ knitr::opts_chunk$set(echo = TRUE)
 For each predictor variable $x$ and outcome variable $y$, we want to test whether $x$ is associated with $y$. An unajusted linear model and an adjusted linear model is fit in order to test the hypothesis. The unadjusted linear model contains only the predictor variable, while the adjusted model also contains covariate variables. The two models are below.
 
 * Unadjusted model: 
-$$y = \beta_0 + \beta_1 x + \beta_2 t$$
+$$y = \beta_0 + \beta_1 x + \beta_2 t (+ \beta_3 y_{12})$$
 * Adjusted model: 
-$$y = \beta_0 + \beta_1 x + \beta_2 t + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k$$
+$$y = \beta_0 + \beta_1 x + \beta_2 t (+ \beta_3 y_{12}) + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k$$
 
-$y$ is any outcome variable from the outcome matrix $Y$. $x$ is any predictor variable from the predictor matrix $X$, and $t$ is the treatment group (IFA or LNS). The treatment group is included in the model in order to remove the variance that it causes. $\beta_0$ is the intercept, and $\beta_1$ is the slop. $z_1$ to $z_k$ are covariate variables selected, and $\gamma_1$ to $\gamma_k$ are the corresponding coefficients to covariate vairables.
+$y$ is any outcome variable from the outcome matrix $Y$. $x$ is any predictor variable from the predictor matrix $X$, and $t$ is the treatment group (IFA or LNS). The treatment group is included in the model in order to remove the variance that it causes. $\beta_0$ is the intercept, and $\beta_1$ is the slop. $z_1$ to $z_k$ are covariate variables selected, and $\gamma_1$ to $\gamma_k$ are the corresponding coefficients to covariate vairables. For outcome variables for 12-18 month change, the 12 month variable ($y_{12}$) is also included in both the unadjusted and adjusted model.
 
 Hypothesis test will be performed on $\beta_1$ against 0 for each $x$. If p < 0.05, we reject the null hypothesis and accept the alternative hypothesis that $x$ is associated with $y$.
 
@@ -99,7 +102,7 @@ Covariates are:
 * Maternal age
 
 ```{r}
-pkgs=c("dplyr", "reshape2", "tibble", "ggplot2", "Metabase", "knitr", "kableExtra")
+pkgs=c("dplyr", "reshape2", "tibble", "stringr", "ggplot2", "Metabase", "knitr", "kableExtra")
 for(pkg in pkgs){
     suppressPackageStartupMessages(library(pkg, character.only=TRUE))
 }
@@ -156,7 +159,10 @@ vars_covariates = data.frame(
     )
 )
 df_covariates = data$data$cli$sample_table[,vars_covariates$name]
-flipgroup = data$data$cli$sample_table$flipgroup
+metadata = data.frame(
+    flipgroup = data$data$cli$sample_table$flipgroup,
+    t(data$data$cli$conc_table[c("waz12", "laz12", "wlz12", "hcz12"),])
+)
 ```
 
 
@@ -271,9 +277,10 @@ pretty_table(bivar$p)
 
 ## Step 3: Covariate
 
-Next, a complete model was fit between any **predictor variable** $x$ and **outcome variable** $y$, with any covariates $z$ that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS).
+Next, a complete model was fit between any **predictor variable** $x$ and **outcome variable** $y$, with any covariates $z$ that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS). And for 12-18 month change outcome variables, the 12 month value of this variable is also included.
 
 ```{r}
+models = ""
 covar = lapply(vars_predictors, function(predictor){
     x = df_predictors[,predictor]
     res = lapply(vars_outcomes, function(outcome){
@@ -282,9 +289,26 @@ covar = lapply(vars_predictors, function(predictor){
         covariates = vars_covariates$name[bivar$p[outcome,] < 0.1]
         # construct the design matrix, that contains the flipgroup, the
         # predictor variabel x, and any covariates
-        design = data.frame(flipgroup = as.numeric(flipgroup) - 1, x = x) %>%
+        # if predictor is a 12-18, the 12 month value is included in the model
+        score_type = str_sub(outcome, 1, 3)
+        measure_type = str_sub(outcome, 4)
+        design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1, x = x)
+        colnames(design)[2] = predictor
+        if(measure_type == "1812"){
+            var_12 = paste0(score_type, "12")
+            design = cbind(design, metadata[, var_12])
+            colnames(design)[3] = var_12
+        }
+        design = design %>%
             cbind(df_covariates[,covariates, drop=FALSE]) %>%
             as.matrix
+        # save the model to print out
+        global_env = parent.env(parent.env(environment()))
+        global_env$models = paste0(
+            global_env$models,
+            paste("##", outcome, "~", paste(colnames(design), collapse = " + "), "<br/>")
+        )
+        # fit the model
         fit = lm(y ~ design)
         fit = summary(fit)$coef
         rownames(fit) = gsub('design', '', rownames(fit))
@@ -304,6 +328,26 @@ covar = lapply(vars_predictors, function(predictor){
     `names<-`(vars_predictors)
 ```
 
+```{r results="asis"}
+html = glue::glue('
+<pre>
+    <a 
+        class="btn btn-danger btn-xs" 
+        role="button" data-toggle="collapse" 
+        href="#models-1" aria-expanded="false" 
+        aria-controls="collapseExample"
+        style="float: right;"
+    >show models </a>
+    <div class="collapse" id="models-1">    
+        <code class="hljs" style="white-space: nowrap; overflow-x:auto;">{models}</code> 
+    </div>
+</pre>
+')
+html = gsub("[[:space:]]+", " ", html)
+cat(html)
+```
+
+
 The tables below shows the p value of each covariate $z$ in the complete model. 
 
 ```{r, results='asis'}
@@ -315,7 +359,7 @@ naved_table(lapply(covar, pretty_table), names(covar), id="tab-covar")
 
 ## Step 4: Fit the models
 
-Evantually, the adjusted model was built for any given **outcome variable** $y$ and **predictor variable** $x$. The covariate used in any adjusted model must have a <span style="color: red;">p value smaller than 0.1</span> in step 2, and a <span style="color: red;">p value smaller 0.05</span> in step 3. The adjusted model also contains the treatment group.
+Finally, the adjusted model was built for any given **outcome variable** $y$ and **predictor variable** $x$. The covariate used in any adjusted model must have a <span style="color: red;">p value smaller than 0.1</span> in step 2, regardless of the p value in step 3. The adjusted model also contains the treatment group. The 12 month value of the same variables is also included for 12-18 month change outcomes.
 
 ```{r}
 fits = lapply(vars_predictors, function(predictor){
@@ -323,7 +367,7 @@ fits = lapply(vars_predictors, function(predictor){
     lapply(vars_outcomes, function(outcome){
         y = df_outcomes[, outcome]
         # unadjusted model
-        design = data.frame(flipgroup = as.numeric(flipgroup) - 1, x = x) %>%
+        design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1, x = x) %>%
             as.matrix()
         fit1 = lm(y ~ design)
         ci1 = formatC(confint(fit1)["designx",], format='e', digits = 2)
@@ -332,8 +376,15 @@ fits = lapply(vars_predictors, function(predictor){
         r_squared_1 = fit1$r.squared
         adj_r_squared_1 = fit1$adj.r.squared
         # adjusted model
-        covariates = vars_covariates$name[!is.na(covar[[predictor]][outcome,]) &
-                                          covar[[predictor]][outcome,] < 0.05]
+        covariates = vars_covariates$name[!is.na(covar[[predictor]][outcome,])]
+        # add the 12 month value to adjust model when dealing with 12-18 zscores
+        score_type = str_sub(outcome, 1, 3)
+        measure_type = str_sub(outcome, 4)
+        if(measure_type == "1812"){
+            var_12 = paste0(score_type, "12")
+            design = cbind(design, metadata[, var_12])
+            colnames(design)[3] = var_12
+        }
         design = design %>%
             cbind(df_covariates[,covariates]) %>%
             as.matrix
