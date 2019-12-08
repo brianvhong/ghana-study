@@ -107,6 +107,8 @@ vars = c('wid', 'flipgroup', 'ppregbmi', 'ws2WomanAge', 'totschyrs', 'momht',
          'ffqdairy7', 'ffqfat7', 'ffqpalm7', 'asf7sum', 'flesh7sum', 'fat_all7')
 pdata = cli_data[,vars]
 edata = cli_data[,!(colnames(cli_data) %in% vars)]
+edata["ghana_2421", "hcz18"] = NA
+edata["ghana_2421", "hcz12"] = NA
 edata = edata[, c(
     which(!grepl("[a-z]{2}z1[28]{1}", colnames(edata))),
     which(grepl("[a-z]{2}z1[28]{1}", colnames(edata)))

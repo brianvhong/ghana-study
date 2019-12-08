@@ -1,0 +1,343 @@
+---
+title: "Treatment Effects"
+author: "Chenghao Zhu"
+date: "`r strftime(Sys.time(), '%Y-%m-%d')`"
+output: 
+  html_document:
+    code_folding: show
+    toc: true
+    toc_float: true
+---
+
+<hr>
+
+<script>
+// enable toggle for navs
+$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+  var target = $(e.target).attr("href") // activated tab
+  alert(target);
+});
+</script>
+
+<style type="text/css">
+code {
+  font-family: monaco;
+}
+body p{
+    font-size: 12pt
+}
+body li {
+    font: 12pt
+}
+table.table {
+    white-space: nowrap;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+For each primary outcome variables we would like to test whether it is differently affected by two interventions. An unadjusted and an adjusted linear model is fit to test the hypothesis. The unadjusted model contains only the *Treatment* group, while the adjusted model also contains covariate variables.
+
+* Unadjusted model:
+$$y = \beta_0 + \beta_1 t$$
+* Anjusted model:
+$$y = \beta_0 + \beta_1 t + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k$$
+
+$y$ is any outcome variable from the outcome matrix $Y$, and $t$ is the treatment group (IFA or LNS).  $\beta_0$ is the intercept, and $\beta_1$ is the slop. $z_1$ to $z_k$ are covariate variables selected, and $\gamma_1$ to $\gamma_k$ are the corresponding coefficients to covariate vairables.
+
+Hypothesis test is be performed on $\beta_1$ against 0 for each $x$. If p < 0.05, we reject the null hypothesis and accept the alternative hypothesis that $x$ is associated with $y$.
+
+For any given $y$, the covariate variables ($z$) are selected using two criterias in order to be included in the adjusted model.
+
+1. $z$ is significantly correlated with $y$
+2. $z$ is significnat as a covariatein the complete model.
+
+## Step 1: define variables
+
+Primary outcome variables:
+
+* HDL cholesterol efflux
+* HDL lipidome surface to core lipid ratio
+* HDL lipidome overall $\text{EOD}_{\text{18}}$
+* HDL lipidome overall ACL
+* HDL ApoA1
+* HDL SSA1
+* HDL SSA2
+* HDL ApoL1
+
+Covariates:
+
+* Asset Index
+* Gestational age at enrolment (wk)
+* HFIA Score
+* Maternal age
+* Log AGP at 18 month
+* Log CRP at 18 month
+* Maternal malaria
+* MB Hb conc. g/L
+* Mom's height (cm)
+* Sex updated
+* Years of formal education (y)
+
+
+```{r}
+pkgs=c("dplyr", "reshape2", "tibble", "ggplot2", "Metabase", "knitr", "kableExtra")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only=TRUE))
+}
+```
+
+```{r}
+load("../apps/app/data/data.rda")
+df_outcome = rbind(
+    chol_efflux = data$data$fct$conc_table["chol_efflux",],
+    surface_core_ratio = data$data$lpd$ratios$conc_table["surface/core",],
+    eod_overall = data$data$lpd$eod$conc_table["EOD Overall",],
+    acl_overall = data$data$lpd$acl$conc_table["ACL Overall",],
+    data$data$glc$peptide$conc_table[c(
+        "pep-APOA1_LAEYHAK Results", 
+        "SAA1_GPGGVWAAEAISDAR_z3 Results",
+        "SAA2_GPGGAWAAEVISNAR_z3 Results",
+        "pep-APOL1_VTEPISAESGEQVER_z2 Results"
+    ),] %>%
+        `rownames<-`(c("apoa1", "saa1", "saa2", "apol1"))
+) %>% t %>% as.data.frame
+vars_outcome = colnames(df_outcome)
+
+vars_covariate = c(
+    "asset1" = "Asset Index",
+    "gaatdel" = "Gestational age at enrolment (wk)",
+    "hfia" = "HFIA Score",
+    "ws2WomanAge" = "Maternal age",
+    "logagp18" = "Log AGP at 18 month",
+    "logcrp18" = "Log CRP at 18 month",
+    "malaria" = "Maternal malaria",
+    "mbhb" = "MB Hb conc. g/L",
+    "momht" = "Mom's height (cm)",
+    "sex_updated" = "Sex updated",
+    "totschyrs" = "Years of formal education (y)"
+)
+
+df_covariate = data.frame(
+    data$data$cli$sample_table[,c(
+        "asset1",
+        "gaatdel",
+        "hfia"
+    )],
+    t(data$data$cli$conc_table[c(
+        "logagp18",
+        "logcrp18"
+    ),]),
+    data$data$cli$sample_table[,c(
+        "malaria",
+        "mbhb",
+        "momht",
+        "sex_updated",
+        "totschyrs"
+    )]
+)
+
+metadata = data.frame(
+    flipgroup = data$data$cli$sample_table$flipgroup
+)
+```
+
+Create dummy variables for chatagorical data. 
+
+```{r}
+make_dummy_variables = function(x){
+    out = NULL
+    for(var in colnames(x)){
+        col = x[[var]]
+        if(!is.numeric(col)){
+            col = as.factor(col)
+            if(length(levels(col)) == 2){
+                col = as.numeric(col) - 1
+                out = cbind(out, col)
+                colnames(out)[ncol(out)] = var
+            } else {
+                dummys = sapply(levels(col)[-1], function(l){
+                    ifelse(col == l, 1, 0)
+                })
+                colnames(dummys) = paste0(var, ":", levels(col))
+                out = data.frame(out, dummys)
+            }
+        } else {
+            out = cbind(out, col)
+            colnames(out)[ncol(out)] = var
+        }
+    }
+    return(as.data.frame(out))
+}
+df_covariate = make_dummy_variables(df_covariate)
+```
+
+<div style="display: block"><a class="btn btn-danger btn-xs" role="button" data-toggle="collapse" href="#util-functions" aria-expanded="false" aria-controls="collapseExample" style="float: right;">
+util functions
+</a></div>
+<div class="collapse" id="util-functions">
+```{r}
+pretty_table = function(df){
+    df %>% as.data.frame %>%
+        rownames_to_column("response") %>%
+        melt(id.vars = "response") %>%
+        mutate(value = round(value, 4)) %>%
+        mutate(value = ifelse(is.na(value), ".", value)) %>%
+        mutate(value = sapply(value, function(p){
+            if(p == ".") color = ""
+            else if(p < 0.05) color = "yellow"
+            else if(p < 0.1) color = "orange"
+            else color = ""
+            cell_spec(p, 'html', background = color)
+        }))%>%
+        dcast(response ~ variable) %>%
+        kable(format = "html", escape = FALSE, align = 'c') %>% 
+        kable_styling("striped") %>%
+        column_spec(1, bold = T, background = "#ABABAB", color = "black") %>%
+        scroll_box(width = "100%")
+}
+pretty_table2 = function(df){
+    df %>% as.data.frame %>% 
+        mutate_if(is.numeric, function(x){
+            sapply(x, function(xx){
+                if(abs(xx) > 0.0001) round(xx, 4)
+                else formatC(xx, format="e", digit = 2)
+            })
+        }) %>%
+        mutate(pval = sapply(pval, function(p){
+            p = as.numeric(p)
+            if(p < 0.05) color = "yellow"
+            else if(p < 0.1) color = "orange"
+            else color = ""
+            cell_spec(p, 'html', background = color)
+        }))%>%
+        kable(format = "html", escape = FALSE, align = 'c') %>% 
+        kable_styling("striped") %>%
+        column_spec(1, bold = T, background = "#ABABAB", color = "black") %>%
+        scroll_box(width = "100%")
+}
+```
+</div>
+
+<hr>
+
+## Step 2: bivariate covariates vs outcomes
+
+Correlation between given covariate variable $z$ and outcome variable $y$ is performed using Pearson's test. The p-value is colored in orange if it's smaller than 0.1 and in yellow if it's smaller than 0.05.
+
+```{r}
+bivar = lapply(df_covariate, function(x){
+    x = as.numeric(x)
+    lapply(df_outcome, function(y){
+        res = cor.test(x, y)
+        p = res$p.value
+        r = res$estimate %>% `names<-`(NULL)
+        return(c(p = p, r = r))
+    }) %>%
+        do.call(rbind, .)
+})
+bivar = lapply(c("p", "r"), function(param){
+    sapply(bivar, function(xx){
+        return(xx[,param])
+    })
+}) %>%
+    `names<-`(c("p", "r"))
+pretty_table(bivar$p)
+```
+
+## Step 3: Covariate
+
+Next, a complete model was fit between the **treatment group** $t$ and a given **outcome variable** $y$, with any covariates $z$ that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS). 
+
+```{r}
+models = ""
+covar = lapply(vars_outcome, function(outcome){
+    y = df_outcome[,outcome]
+    # find covariate variables with p smaller than 0.1 in step 2
+    covariates = colnames(df_covariate)[bivar$p[outcome,] < 0.1]
+    # construct the design matrix, that contains the flipgroup, the
+    # predictor variabel x, and any covariates
+    design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1)
+    design = design %>%
+        cbind(df_covariate[,covariates, drop=FALSE]) %>%
+        as.matrix
+    # save the model to print out
+    # global_env = parent.env(environment())
+    # global_env$models = paste0(
+    #     global_env$models,
+    #     paste("##", outcome, "~", paste(colnames(design), collapse = " + "), "<br/>")
+    # )
+    # fit the model
+    fit = lm(y ~ design)
+    fit = summary(fit)$coef
+    rownames(fit) = gsub('design', '', rownames(fit))
+    res = sapply(colnames(df_covariate), function(x){
+        if(x %in% covariates){
+            return(fit[x, "Pr(>|t|)"])
+        } else {
+            return(NA)
+        }
+    })
+    return(res)
+}) %>%
+    do.call(rbind, .) %>%
+    `rownames<-`(vars_outcome)
+pretty_table(covar)
+```
+
+## Step 4: Fit the models
+
+Finally, the adjusted model was built for a given **outcome variable** $y$ and **treatment** $t$. The covariate used in any adjusted model must have a <span style="color: red;">p value smaller than 0.1</span> in step 2, regardless of the p value in step 3. The adjusted model also contains the treatment group. The 12 month value of the same variables is also included for 12-18 month change outcomes.
+
+```{r}
+fits = lapply(vars_outcome, function(outcome){
+    y = df_outcome[, outcome]
+    # unadjusted model
+    design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1) %>%
+        as.matrix()
+    fit1 = lm(y ~ design)
+    ci1 = confint(fit1)["design",]
+    fit1 = summary(fit1)
+    coef1 = fit1$coefficients["design",]
+    
+    # adjusted model
+    covariates = colnames(df_covariate)[!is.na(covar[outcome,])]
+    design = design %>%
+        cbind(df_covariate[, covariates]) %>%
+        as.matrix
+    fit2 = lm(y ~ design)
+    ci2 = confint(fit2)[2,]
+    fit2 = summary(fit2)
+    coef2 = fit2$coefficients[2,]
+    fit = data.frame(
+        rep(outcome, 2),
+        c("unadjusted", "adjusted")
+    ) %>%
+        cbind(
+            rbind(coef1, coef2),
+            rbind(ci1, ci2)
+        )
+    colnames(fit) = c("response", "model", "beta1", "stderr", "tval", "pval", "ci25", "ci975")
+    return(fit)
+}) %>%
+    do.call(rbind, .) 
+pretty_table2(fits)
+```
+
+
+```{r, echo = FALSE}
+fits = lapply(c("adjusted", "unadjusted"), function(m){
+    x = filter(fits, model == m)
+    x = column_to_rownames(x, "response")
+    x
+}) %>%
+    `names<-`(c("adjusted", "unadjusted"))
+saveRDS(fits, file = "data/treatment-effect.rds")
+```
+
+```{r}
+sessionInfo()
+```
+

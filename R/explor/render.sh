@@ -1,11 +1,14 @@
 #!/usr/bin/env bash -l
-
 POSITIONAL=()
 while [[ $# -gt 0 ]]
 do
 key="$1"
 
 case $key in
+    -h|--help)
+        echo "render.sh -h [-o|--output-dir] [input-file]"
+        exit
+        ;;
     -o|--output-dir)
         output_dir="$2"
         shift 2
