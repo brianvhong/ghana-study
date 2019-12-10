@@ -38,7 +38,7 @@ table.table {
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-For each primary outcome variables we would like to test whether it is differently affected by two interventions. An unadjusted and an adjusted linear model is fit to test the hypothesis. The unadjusted model contains only the *Treatment* group, while the adjusted model also contains covariate variables.
+For each primary outcome variables we would like to test whether it is differently affected by two interventions. An unadjusted and two adjusted linear model is fit to test the hypothesis. The unadjusted model 1 contains only the *Treatment* group, the adjusted model 2 also contains maternal baseline variables, while model 3 contains additional variables of child's CRP and AGP.
 
 * Unadjusted model:
 $$y = \beta_0 + \beta_1 t$$
@@ -67,19 +67,22 @@ Primary outcome variables:
 * HDL SSA2
 * HDL ApoL1
 
-Covariates:
+Covariates for model 1 and 2:
 
 * Asset Index
 * Gestational age at enrolment (wk)
 * HFIA Score
 * Maternal age
-* Log AGP at 18 month
-* Log CRP at 18 month
 * Maternal malaria
 * MB Hb conc. g/L
 * Mom's height (cm)
 * Sex updated
 * Years of formal education (y)
+
+Covariates for modle 2 only:
+
+* Log AGP at 18 month
+* Log CRP at 18 month
 
 
 ```{r}
@@ -106,30 +109,28 @@ df_outcome = rbind(
 ) %>% t %>% as.data.frame
 vars_outcome = colnames(df_outcome)
 
-vars_covariate = c(
+vars_covariate1 = c(
     "asset1" = "Asset Index",
     "gaatdel" = "Gestational age at enrolment (wk)",
     "hfia" = "HFIA Score",
     "ws2WomanAge" = "Maternal age",
-    "logagp18" = "Log AGP at 18 month",
-    "logcrp18" = "Log CRP at 18 month",
     "malaria" = "Maternal malaria",
     "mbhb" = "MB Hb conc. g/L",
     "momht" = "Mom's height (cm)",
     "sex_updated" = "Sex updated",
     "totschyrs" = "Years of formal education (y)"
 )
+vars_covariates2 = c(
+    "logagp18" = "Log AGP at 18 month",
+    "logcrp18" = "Log CRP at 18 month"
+)
 
-df_covariate = data.frame(
+df_covariate1 = data.frame(
     data$data$cli$sample_table[,c(
         "asset1",
         "gaatdel",
         "hfia"
     )],
-    t(data$data$cli$conc_table[c(
-        "logagp18",
-        "logcrp18"
-    ),]),
     data$data$cli$sample_table[,c(
         "malaria",
         "mbhb",
@@ -137,6 +138,14 @@ df_covariate = data.frame(
         "sex_updated",
         "totschyrs"
     )]
+)
+
+df_covariate2 = data.frame(
+    df_covariate1,
+    t(data$data$cli$conc_table[c(
+        "logagp18",
+        "logcrp18"
+    ),])
 )
 
 metadata = data.frame(
@@ -171,7 +180,8 @@ make_dummy_variables = function(x){
     }
     return(as.data.frame(out))
 }
-df_covariate = make_dummy_variables(df_covariate)
+df_covariate1 = make_dummy_variables(df_covariate1)
+df_covariate2 = make_dummy_variables(df_covariate2)
 ```
 
 <div style="display: block"><a class="btn btn-danger btn-xs" role="button" data-toggle="collapse" href="#util-functions" aria-expanded="false" aria-controls="collapseExample" style="float: right;">
@@ -228,23 +238,37 @@ pretty_table2 = function(df){
 Correlation between given covariate variable $z$ and outcome variable $y$ is performed using Pearson's test. The p-value is colored in orange if it's smaller than 0.1 and in yellow if it's smaller than 0.05.
 
 ```{r}
-bivar = lapply(df_covariate, function(x){
-    x = as.numeric(x)
-    lapply(df_outcome, function(y){
-        res = cor.test(x, y)
-        p = res$p.value
-        r = res$estimate %>% `names<-`(NULL)
-        return(c(p = p, r = r))
-    }) %>%
-        do.call(rbind, .)
-})
-bivar = lapply(c("p", "r"), function(param){
-    sapply(bivar, function(xx){
-        return(xx[,param])
+bivars = lapply(list(df_covariate1, df_covariate2), function(df_covariate){
+    bivar = lapply(df_covariate, function(x){
+        x = as.numeric(x)
+        lapply(df_outcome, function(y){
+            res = cor.test(x, y)
+            p = res$p.value
+            r = res$estimate %>% `names<-`(NULL)
+            return(c(p = p, r = r))
+        }) %>%
+            do.call(rbind, .)
     })
+    bivar = lapply(c("p", "r"), function(param){
+        sapply(bivar, function(xx){
+            return(xx[,param])
+        })
+    }) %>%
+        `names<-`(c("p", "r"))
 }) %>%
-    `names<-`(c("p", "r"))
-pretty_table(bivar$p)
+    `names<-`(c("model2", "model3"))
+```
+
+### model 2 {.tabset}
+
+```{r}
+pretty_table(bivars$model2$p)
+```
+
+### model 3 {.tabset}
+
+```{r}
+pretty_table(bivars$model3$p)
 ```
 
 ## Step 3: Covariate
@@ -252,40 +276,49 @@ pretty_table(bivar$p)
 Next, a complete model was fit between the **treatment group** $t$ and a given **outcome variable** $y$, with any covariates $z$ that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS). 
 
 ```{r}
-models = ""
-covar = lapply(vars_outcome, function(outcome){
-    y = df_outcome[,outcome]
-    # find covariate variables with p smaller than 0.1 in step 2
-    covariates = colnames(df_covariate)[bivar$p[outcome,] < 0.1]
-    # construct the design matrix, that contains the flipgroup, the
-    # predictor variabel x, and any covariates
-    design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1)
-    design = design %>%
-        cbind(df_covariate[,covariates, drop=FALSE]) %>%
-        as.matrix
-    # save the model to print out
-    # global_env = parent.env(environment())
-    # global_env$models = paste0(
-    #     global_env$models,
-    #     paste("##", outcome, "~", paste(colnames(design), collapse = " + "), "<br/>")
-    # )
-    # fit the model
-    fit = lm(y ~ design)
-    fit = summary(fit)$coef
-    rownames(fit) = gsub('design', '', rownames(fit))
-    res = sapply(colnames(df_covariate), function(x){
-        if(x %in% covariates){
-            return(fit[x, "Pr(>|t|)"])
-        } else {
-            return(NA)
-        }
-    })
-    return(res)
+covars = lapply(names(bivars), function(mod){
+    df_covariate = if(mod == "model2") df_covariate1 else df_covariate2
+    lapply(vars_outcome, function(outcome){
+        y = df_outcome[,outcome]
+        # find covariate variables with p smaller than 0.1 in step 2
+        covariates = colnames(df_covariate)[bivars[[mod]]$p[outcome,] < 0.1]
+        # construct the design matrix, that contains the flipgroup, the
+        # predictor variabel x, and any covariates
+        design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1)
+        design = design %>%
+            cbind(df_covariate[,covariates, drop=FALSE]) %>%
+            as.matrix
+        # fit the model
+        fit = lm(y ~ design)
+        fit = summary(fit)$coef
+        rownames(fit) = gsub('design', '', rownames(fit))
+        res = sapply(colnames(df_covariate), function(x){
+            if(x %in% covariates){
+                return(fit[x, "Pr(>|t|)"])
+            } else {
+                return(NA)
+            }
+        })
+        return(res)
+    }) %>%
+        do.call(rbind, .) %>%
+        `rownames<-`(vars_outcome)
 }) %>%
-    do.call(rbind, .) %>%
-    `rownames<-`(vars_outcome)
-pretty_table(covar)
+    `names<-`(names(bivars))
 ```
+
+### model 2 {.tabset}
+
+```{r}
+pretty_table(covars$model2)
+```
+
+### model 3 {.tabset}
+
+```{r}
+pretty_table(covars$model3)
+```
+
 
 ## Step 4: Fit the models
 
@@ -294,7 +327,7 @@ Finally, the adjusted model was built for a given **outcome variable** $y$ and *
 ```{r}
 fits = lapply(vars_outcome, function(outcome){
     y = df_outcome[, outcome]
-    # unadjusted model
+    # model 1
     design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1) %>%
         as.matrix()
     fit1 = lm(y ~ design)
@@ -302,24 +335,35 @@ fits = lapply(vars_outcome, function(outcome){
     fit1 = summary(fit1)
     coef1 = fit1$coefficients["design",]
     
-    # adjusted model
-    covariates = colnames(df_covariate)[!is.na(covar[outcome,])]
+    # model 2
+    covariates = colnames(df_covariate1)[!is.na(covars$model2[outcome,])]
     design = design %>%
-        cbind(df_covariate[, covariates]) %>%
+        cbind(df_covariate1[, covariates]) %>%
         as.matrix
     fit2 = lm(y ~ design)
     ci2 = confint(fit2)[2,]
     fit2 = summary(fit2)
     coef2 = fit2$coefficients[2,]
+    
+    # model 3
+    covariates = colnames(df_covariate2)[!is.na(covars$model3[outcome,])]
+    design = design %>%
+        cbind(df_covariate2[, covariates]) %>%
+        as.matrix
+    fit3 = lm(y ~ design)
+    ci3 = confint(fit3)[2,]
+    fit3 = summary(fit3)
+    coef3 = fit3$coefficients[2,]
+    
     fit = data.frame(
-        rep(outcome, 2),
-        c("unadjusted", "adjusted")
+        rep(outcome, 3),
+        paste0("model", 1:3)
     ) %>%
         cbind(
-            rbind(coef1, coef2),
-            rbind(ci1, ci2)
-        )
-    colnames(fit) = c("response", "model", "beta1", "stderr", "tval", "pval", "ci25", "ci975")
+            rbind(coef1, coef2, coef3),
+            rbind(ci1, ci2, ci3)
+        ) %>%
+        `colnames<-`(c("response", "model", "beta1", "stderr", "tval", "pval", "ci25", "ci975"))
     return(fit)
 }) %>%
     do.call(rbind, .) 

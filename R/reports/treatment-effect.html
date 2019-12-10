@@ -12,7 +12,7 @@
 
 <meta name="author" content="Chenghao Zhu" />
 
-<meta name="date" content="2019-12-07" />
+<meta name="date" content="2019-12-09" />
 
 <title>Treatment Effects</title>
 
@@ -1592,7 +1592,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Treatment Effects</h1>
 <h4 class="author">Chenghao Zhu</h4>
-<h4 class="date">2019-12-07</h4>
+<h4 class="date">2019-12-09</h4>
 
 </div>
 
@@ -1619,7 +1619,7 @@ table.table {
     white-space: nowrap;
 }
 </style>
-<p>For each primary outcome variables we would like to test whether it is differently affected by two interventions. An unadjusted and an adjusted linear model is fit to test the hypothesis. The unadjusted model contains only the <em>Treatment</em> group, while the adjusted model also contains covariate variables.</p>
+<p>For each primary outcome variables we would like to test whether it is differently affected by two interventions. An unadjusted and two adjusted linear model is fit to test the hypothesis. The unadjusted model 1 contains only the <em>Treatment</em> group, the adjusted model 2 also contains maternal baseline variables, while model 3 contains additional variables of child’s CRP and AGP.</p>
 <ul>
 <li>Unadjusted model: <span class="math display">\[y = \beta_0 + \beta_1 t\]</span></li>
 <li>Anjusted model: <span class="math display">\[y = \beta_0 + \beta_1 t + \gamma_1 z_1 + \gamma_2 z_2 + ... + \gamma_k z_k\]</span></li>
@@ -1644,19 +1644,22 @@ table.table {
 <li>HDL SSA2</li>
 <li>HDL ApoL1</li>
 </ul>
-<p>Covariates:</p>
+<p>Covariates for model 1 and 2:</p>
 <ul>
 <li>Asset Index</li>
 <li>Gestational age at enrolment (wk)</li>
 <li>HFIA Score</li>
 <li>Maternal age</li>
-<li>Log AGP at 18 month</li>
-<li>Log CRP at 18 month</li>
 <li>Maternal malaria</li>
 <li>MB Hb conc. g/L</li>
 <li>Mom’s height (cm)</li>
 <li>Sex updated</li>
 <li>Years of formal education (y)</li>
+</ul>
+<p>Covariates for modle 2 only:</p>
+<ul>
+<li>Log AGP at 18 month</li>
+<li>Log CRP at 18 month</li>
 </ul>
 <pre class="r"><code>pkgs=c(&quot;dplyr&quot;, &quot;reshape2&quot;, &quot;tibble&quot;, &quot;ggplot2&quot;, &quot;Metabase&quot;, &quot;knitr&quot;, &quot;kableExtra&quot;)
 for(pkg in pkgs){
@@ -1678,30 +1681,28 @@ df_outcome = rbind(
 ) %&gt;% t %&gt;% as.data.frame
 vars_outcome = colnames(df_outcome)
 
-vars_covariate = c(
+vars_covariate1 = c(
     &quot;asset1&quot; = &quot;Asset Index&quot;,
     &quot;gaatdel&quot; = &quot;Gestational age at enrolment (wk)&quot;,
     &quot;hfia&quot; = &quot;HFIA Score&quot;,
     &quot;ws2WomanAge&quot; = &quot;Maternal age&quot;,
-    &quot;logagp18&quot; = &quot;Log AGP at 18 month&quot;,
-    &quot;logcrp18&quot; = &quot;Log CRP at 18 month&quot;,
     &quot;malaria&quot; = &quot;Maternal malaria&quot;,
     &quot;mbhb&quot; = &quot;MB Hb conc. g/L&quot;,
     &quot;momht&quot; = &quot;Mom&#39;s height (cm)&quot;,
     &quot;sex_updated&quot; = &quot;Sex updated&quot;,
     &quot;totschyrs&quot; = &quot;Years of formal education (y)&quot;
 )
+vars_covariates2 = c(
+    &quot;logagp18&quot; = &quot;Log AGP at 18 month&quot;,
+    &quot;logcrp18&quot; = &quot;Log CRP at 18 month&quot;
+)
 
-df_covariate = data.frame(
+df_covariate1 = data.frame(
     data$data$cli$sample_table[,c(
         &quot;asset1&quot;,
         &quot;gaatdel&quot;,
         &quot;hfia&quot;
     )],
-    t(data$data$cli$conc_table[c(
-        &quot;logagp18&quot;,
-        &quot;logcrp18&quot;
-    ),]),
     data$data$cli$sample_table[,c(
         &quot;malaria&quot;,
         &quot;mbhb&quot;,
@@ -1709,6 +1710,14 @@ df_covariate = data.frame(
         &quot;sex_updated&quot;,
         &quot;totschyrs&quot;
     )]
+)
+
+df_covariate2 = data.frame(
+    df_covariate1,
+    t(data$data$cli$conc_table[c(
+        &quot;logagp18&quot;,
+        &quot;logcrp18&quot;
+    ),])
 )
 
 metadata = data.frame(
@@ -1739,7 +1748,8 @@ metadata = data.frame(
     }
     return(as.data.frame(out))
 }
-df_covariate = make_dummy_variables(df_covariate)</code></pre>
+df_covariate1 = make_dummy_variables(df_covariate1)
+df_covariate2 = make_dummy_variables(df_covariate2)</code></pre>
 <div style="display: block">
 <a class="btn btn-danger btn-xs" role="button" data-toggle="collapse" href="#util-functions" aria-expanded="false" aria-controls="collapseExample" style="float: right;"> util functions </a>
 </div>
@@ -1789,23 +1799,28 @@ pretty_table2 = function(df){
 <div id="step-2-bivariate-covariates-vs-outcomes" class="section level2">
 <h2>Step 2: bivariate covariates vs outcomes</h2>
 <p>Correlation between given covariate variable <span class="math inline">\(z\)</span> and outcome variable <span class="math inline">\(y\)</span> is performed using Pearson’s test. The p-value is colored in orange if it’s smaller than 0.1 and in yellow if it’s smaller than 0.05.</p>
-<pre class="r"><code>bivar = lapply(df_covariate, function(x){
-    x = as.numeric(x)
-    lapply(df_outcome, function(y){
-        res = cor.test(x, y)
-        p = res$p.value
-        r = res$estimate %&gt;% `names&lt;-`(NULL)
-        return(c(p = p, r = r))
-    }) %&gt;%
-        do.call(rbind, .)
-})
-bivar = lapply(c(&quot;p&quot;, &quot;r&quot;), function(param){
-    sapply(bivar, function(xx){
-        return(xx[,param])
+<pre class="r"><code>bivars = lapply(list(df_covariate1, df_covariate2), function(df_covariate){
+    bivar = lapply(df_covariate, function(x){
+        x = as.numeric(x)
+        lapply(df_outcome, function(y){
+            res = cor.test(x, y)
+            p = res$p.value
+            r = res$estimate %&gt;% `names&lt;-`(NULL)
+            return(c(p = p, r = r))
+        }) %&gt;%
+            do.call(rbind, .)
     })
+    bivar = lapply(c(&quot;p&quot;, &quot;r&quot;), function(param){
+        sapply(bivar, function(xx){
+            return(xx[,param])
+        })
+    }) %&gt;%
+        `names&lt;-`(c(&quot;p&quot;, &quot;r&quot;))
 }) %&gt;%
-    `names&lt;-`(c(&quot;p&quot;, &quot;r&quot;))
-pretty_table(bivar$p)</code></pre>
+    `names&lt;-`(c(&quot;model2&quot;, &quot;model3&quot;))</code></pre>
+<div id="model-2" class="section level3 tabset">
+<h3>model 2</h3>
+<pre class="r"><code>pretty_table(bivars$model2$p)</code></pre>
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
 <table class="table table-striped" style="margin-left: auto; margin-right: auto;">
 <thead>
@@ -1821,12 +1836,6 @@ gaatdel
 </th>
 <th style="text-align:center;">
 hfia
-</th>
-<th style="text-align:center;">
-logagp18
-</th>
-<th style="text-align:center;">
-logcrp18
 </th>
 <th style="text-align:center;">
 malaria
@@ -1860,12 +1869,6 @@ acl_overall
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8236</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0297</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1565</span>
-</td>
-<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.02</span>
 </td>
 <td style="text-align:center;">
@@ -1893,12 +1896,6 @@ apoa1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4949</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0282</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0042</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.335</span>
@@ -1930,12 +1927,6 @@ apol1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9741</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5134</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4461</span>
-</td>
-<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2048</span>
 </td>
 <td style="text-align:center;">
@@ -1963,12 +1954,6 @@ chol_efflux
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7579</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2731</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.598</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6392</span>
@@ -2000,12 +1985,6 @@ eod_overall
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6173</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0131</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0929</span>
-</td>
-<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9443</span>
 </td>
 <td style="text-align:center;">
@@ -2033,12 +2012,6 @@ saa1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4684</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3356</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1659</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2907</span>
@@ -2070,12 +2043,6 @@ saa2
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3365</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.285</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1009</span>
-</td>
-<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3741</span>
 </td>
 <td style="text-align:center;">
@@ -2105,12 +2072,6 @@ surface_core_ratio
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5938</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6324</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4533</span>
-</td>
-<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9534</span>
 </td>
 <td style="text-align:center;">
@@ -2130,42 +2091,9 @@ surface_core_ratio
 </table>
 </div>
 </div>
-<div id="step-3-covariate" class="section level2">
-<h2>Step 3: Covariate</h2>
-<p>Next, a complete model was fit between the <strong>treatment group</strong> <span class="math inline">\(t\)</span> and a given <strong>outcome variable</strong> <span class="math inline">\(y\)</span>, with any covariates <span class="math inline">\(z\)</span> that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS).</p>
-<pre class="r"><code>models = &quot;&quot;
-covar = lapply(vars_outcome, function(outcome){
-    y = df_outcome[,outcome]
-    # find covariate variables with p smaller than 0.1 in step 2
-    covariates = colnames(df_covariate)[bivar$p[outcome,] &lt; 0.1]
-    # construct the design matrix, that contains the flipgroup, the
-    # predictor variabel x, and any covariates
-    design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1)
-    design = design %&gt;%
-        cbind(df_covariate[,covariates, drop=FALSE]) %&gt;%
-        as.matrix
-    # save the model to print out
-    # global_env = parent.env(environment())
-    # global_env$models = paste0(
-    #     global_env$models,
-    #     paste(&quot;##&quot;, outcome, &quot;~&quot;, paste(colnames(design), collapse = &quot; + &quot;), &quot;&lt;br/&gt;&quot;)
-    # )
-    # fit the model
-    fit = lm(y ~ design)
-    fit = summary(fit)$coef
-    rownames(fit) = gsub(&#39;design&#39;, &#39;&#39;, rownames(fit))
-    res = sapply(colnames(df_covariate), function(x){
-        if(x %in% covariates){
-            return(fit[x, &quot;Pr(&gt;|t|)&quot;])
-        } else {
-            return(NA)
-        }
-    })
-    return(res)
-}) %&gt;%
-    do.call(rbind, .) %&gt;%
-    `rownames&lt;-`(vars_outcome)
-pretty_table(covar)</code></pre>
+<div id="model-3" class="section level3 tabset">
+<h3>model 3</h3>
+<pre class="r"><code>pretty_table(bivars$model3$p)</code></pre>
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
 <table class="table table-striped" style="margin-left: auto; margin-right: auto;">
 <thead>
@@ -2183,10 +2111,364 @@ gaatdel
 hfia
 </th>
 <th style="text-align:center;">
+malaria
+</th>
+<th style="text-align:center;">
+mbhb
+</th>
+<th style="text-align:center;">
+momht
+</th>
+<th style="text-align:center;">
+sex_updated
+</th>
+<th style="text-align:center;">
+totschyrs
+</th>
+<th style="text-align:center;">
 logagp18
 </th>
 <th style="text-align:center;">
 logcrp18
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+acl_overall
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9631</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0451</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8236</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.02</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.977</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8017</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3959</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.548</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0297</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1565</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+apoa1
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.296</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9389</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4949</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.335</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5073</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6746</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3497</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7191</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0282</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0042</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+apol1
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0405</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1014</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9741</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2048</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.271</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6399</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7205</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4614</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5134</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4461</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+chol_efflux
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7132</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3575</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7579</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6392</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4041</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3971</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5812</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3569</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2731</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.598</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+eod_overall
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6228</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.733</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6173</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9443</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5492</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.651</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6815</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4665</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0131</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0929</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+saa1
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1869</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0963</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4684</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2907</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1887</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8357</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0939</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4349</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3356</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1659</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+saa2
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1626</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3395</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3365</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3741</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1254</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8572</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.119</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5313</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.285</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1009</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+surface_core_ratio
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4136</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8674</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5938</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9534</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.59</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4597</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2362</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3005</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6324</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4533</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+</div>
+<div id="step-3-covariate" class="section level2">
+<h2>Step 3: Covariate</h2>
+<p>Next, a complete model was fit between the <strong>treatment group</strong> <span class="math inline">\(t\)</span> and a given <strong>outcome variable</strong> <span class="math inline">\(y\)</span>, with any covariates <span class="math inline">\(z\)</span> that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS).</p>
+<pre class="r"><code>covars = lapply(names(bivars), function(mod){
+    df_covariate = if(mod == &quot;model2&quot;) df_covariate1 else df_covariate2
+    lapply(vars_outcome, function(outcome){
+        y = df_outcome[,outcome]
+        # find covariate variables with p smaller than 0.1 in step 2
+        covariates = colnames(df_covariate)[bivars[[mod]]$p[outcome,] &lt; 0.1]
+        # construct the design matrix, that contains the flipgroup, the
+        # predictor variabel x, and any covariates
+        design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1)
+        design = design %&gt;%
+            cbind(df_covariate[,covariates, drop=FALSE]) %&gt;%
+            as.matrix
+        # fit the model
+        fit = lm(y ~ design)
+        fit = summary(fit)$coef
+        rownames(fit) = gsub(&#39;design&#39;, &#39;&#39;, rownames(fit))
+        res = sapply(colnames(df_covariate), function(x){
+            if(x %in% covariates){
+                return(fit[x, &quot;Pr(&gt;|t|)&quot;])
+            } else {
+                return(NA)
+            }
+        })
+        return(res)
+    }) %&gt;%
+        do.call(rbind, .) %&gt;%
+        `rownames&lt;-`(vars_outcome)
+}) %&gt;%
+    `names&lt;-`(names(bivars))</code></pre>
+<div id="model-2-1" class="section level3 tabset">
+<h3>model 2</h3>
+<pre class="r"><code>pretty_table(covars$model2)</code></pre>
+<div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
+<table class="table table-striped" style="margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:center;">
+response
+</th>
+<th style="text-align:center;">
+asset1
+</th>
+<th style="text-align:center;">
+gaatdel
+</th>
+<th style="text-align:center;">
+hfia
 </th>
 <th style="text-align:center;">
 malaria
@@ -2214,19 +2496,13 @@ acl_overall
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9219</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0775</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1174</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0257</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0331</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2255,25 +2531,310 @@ apoa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+apol1
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.041</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+chol_efflux
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+eod_overall
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+saa1
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1056</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1268</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+saa2
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+surface_core_ratio
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+</tbody>
+</table>
+</div>
+</div>
+<div id="model-3-1" class="section level3 tabset">
+<h3>model 3</h3>
+<pre class="r"><code>pretty_table(covars$model3)</code></pre>
+<div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
+<table class="table table-striped" style="margin-left: auto; margin-right: auto;">
+<thead>
+<tr>
+<th style="text-align:center;">
+response
+</th>
+<th style="text-align:center;">
+asset1
+</th>
+<th style="text-align:center;">
+gaatdel
+</th>
+<th style="text-align:center;">
+hfia
+</th>
+<th style="text-align:center;">
+malaria
+</th>
+<th style="text-align:center;">
+mbhb
+</th>
+<th style="text-align:center;">
+momht
+</th>
+<th style="text-align:center;">
+sex_updated
+</th>
+<th style="text-align:center;">
+totschyrs
+</th>
+<th style="text-align:center;">
+logagp18
+</th>
+<th style="text-align:center;">
+logcrp18
+</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+acl_overall
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9219</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0257</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1174</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+apoa1
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7067</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0147</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 </tr>
 <tr>
@@ -2360,25 +2921,25 @@ eod_overall
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0851</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8106</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 </tr>
 <tr>
@@ -2404,13 +2965,13 @@ saa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
-</td>
-<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1268</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2490,12 +3051,13 @@ surface_core_ratio
 </table>
 </div>
 </div>
+</div>
 <div id="step-4-fit-the-models" class="section level2">
 <h2>Step 4: Fit the models</h2>
 <p>Finally, the adjusted model was built for a given <strong>outcome variable</strong> <span class="math inline">\(y\)</span> and <strong>treatment</strong> <span class="math inline">\(t\)</span>. The covariate used in any adjusted model must have a <span style="color: red;">p value smaller than 0.1</span> in step 2, regardless of the p value in step 3. The adjusted model also contains the treatment group. The 12 month value of the same variables is also included for 12-18 month change outcomes.</p>
 <pre class="r"><code>fits = lapply(vars_outcome, function(outcome){
     y = df_outcome[, outcome]
-    # unadjusted model
+    # model 1
     design = data.frame(flipgroup = as.numeric(metadata$flipgroup) - 1) %&gt;%
         as.matrix()
     fit1 = lm(y ~ design)
@@ -2503,24 +3065,35 @@ surface_core_ratio
     fit1 = summary(fit1)
     coef1 = fit1$coefficients[&quot;design&quot;,]
     
-    # adjusted model
-    covariates = colnames(df_covariate)[!is.na(covar[outcome,])]
+    # model 2
+    covariates = colnames(df_covariate1)[!is.na(covars$model2[outcome,])]
     design = design %&gt;%
-        cbind(df_covariate[, covariates]) %&gt;%
+        cbind(df_covariate1[, covariates]) %&gt;%
         as.matrix
     fit2 = lm(y ~ design)
     ci2 = confint(fit2)[2,]
     fit2 = summary(fit2)
     coef2 = fit2$coefficients[2,]
+    
+    # model 3
+    covariates = colnames(df_covariate2)[!is.na(covars$model3[outcome,])]
+    design = design %&gt;%
+        cbind(df_covariate2[, covariates]) %&gt;%
+        as.matrix
+    fit3 = lm(y ~ design)
+    ci3 = confint(fit3)[2,]
+    fit3 = summary(fit3)
+    coef3 = fit3$coefficients[2,]
+    
     fit = data.frame(
-        rep(outcome, 2),
-        c(&quot;unadjusted&quot;, &quot;adjusted&quot;)
+        rep(outcome, 3),
+        paste0(&quot;model&quot;, 1:3)
     ) %&gt;%
         cbind(
-            rbind(coef1, coef2),
-            rbind(ci1, ci2)
-        )
-    colnames(fit) = c(&quot;response&quot;, &quot;model&quot;, &quot;beta1&quot;, &quot;stderr&quot;, &quot;tval&quot;, &quot;pval&quot;, &quot;ci25&quot;, &quot;ci975&quot;)
+            rbind(coef1, coef2, coef3),
+            rbind(ci1, ci2, ci3)
+        ) %&gt;%
+        `colnames&lt;-`(c(&quot;response&quot;, &quot;model&quot;, &quot;beta1&quot;, &quot;stderr&quot;, &quot;tval&quot;, &quot;pval&quot;, &quot;ci25&quot;, &quot;ci975&quot;))
     return(fit)
 }) %&gt;%
     do.call(rbind, .) 
@@ -2561,7 +3134,7 @@ ci975
 chol_efflux
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 1.4870
@@ -2587,7 +3160,33 @@ unadjusted
 chol_efflux
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+1.4870
+</td>
+<td style="text-align:center;">
+0.8499
+</td>
+<td style="text-align:center;">
+1.7497
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0842</span>
+</td>
+<td style="text-align:center;">
+-0.2053
+</td>
+<td style="text-align:center;">
+3.1794
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+chol_efflux
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 1.4870
@@ -2613,7 +3212,7 @@ adjusted
 surface_core_ratio
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 0.0388
@@ -2639,7 +3238,33 @@ unadjusted
 surface_core_ratio
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+0.0388
+</td>
+<td style="text-align:center;">
+0.0766
+</td>
+<td style="text-align:center;">
+0.5057
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6145</span>
+</td>
+<td style="text-align:center;">
+-0.1138
+</td>
+<td style="text-align:center;">
+0.1914
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+surface_core_ratio
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 0.0388
@@ -2665,7 +3290,7 @@ adjusted
 eod_overall
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 0.0208
@@ -2691,7 +3316,33 @@ unadjusted
 eod_overall
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+0.0208
+</td>
+<td style="text-align:center;">
+0.0222
+</td>
+<td style="text-align:center;">
+0.9408
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3498</span>
+</td>
+<td style="text-align:center;">
+-0.0233
+</td>
+<td style="text-align:center;">
+0.0650
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+eod_overall
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 0.0181
@@ -2717,7 +3368,7 @@ adjusted
 acl_overall
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 0.0550
@@ -2743,7 +3394,33 @@ unadjusted
 acl_overall
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+0.0215
+</td>
+<td style="text-align:center;">
+0.0831
+</td>
+<td style="text-align:center;">
+0.2584
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7968</span>
+</td>
+<td style="text-align:center;">
+-0.1441
+</td>
+<td style="text-align:center;">
+0.1870
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+acl_overall
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 0.0853
@@ -2769,7 +3446,7 @@ adjusted
 apoa1
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 117555.0548
@@ -2795,7 +3472,33 @@ unadjusted
 apoa1
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+117555.0548
+</td>
+<td style="text-align:center;">
+111508.5716
+</td>
+<td style="text-align:center;">
+1.0542
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2951</span>
+</td>
+<td style="text-align:center;">
+-104486.8785
+</td>
+<td style="text-align:center;">
+339596.9881
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+apoa1
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 483845.8741
@@ -2821,7 +3524,7 @@ adjusted
 saa1
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 1198.4120
@@ -2847,7 +3550,33 @@ unadjusted
 saa1
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+1547.5537
+</td>
+<td style="text-align:center;">
+1286.3489
+</td>
+<td style="text-align:center;">
+1.2031
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2327</span>
+</td>
+<td style="text-align:center;">
+-1014.9847
+</td>
+<td style="text-align:center;">
+4110.0921
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+saa1
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 1547.5537
@@ -2873,7 +3602,7 @@ adjusted
 saa2
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 2140.9715
@@ -2899,7 +3628,33 @@ unadjusted
 saa2
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+2140.9715
+</td>
+<td style="text-align:center;">
+2146.1394
+</td>
+<td style="text-align:center;">
+0.9976
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3216</span>
+</td>
+<td style="text-align:center;">
+-2132.5379
+</td>
+<td style="text-align:center;">
+6414.4809
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+saa2
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 2140.9715
@@ -2925,7 +3680,7 @@ adjusted
 apol1
 </td>
 <td style="text-align:center;">
-unadjusted
+model1
 </td>
 <td style="text-align:center;">
 -705.4595
@@ -2951,7 +3706,33 @@ unadjusted
 apol1
 </td>
 <td style="text-align:center;">
-adjusted
+model2
+</td>
+<td style="text-align:center;">
+-758.6075
+</td>
+<td style="text-align:center;">
+1686.0033
+</td>
+<td style="text-align:center;">
+-0.4499
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.654</span>
+</td>
+<td style="text-align:center;">
+-4116.5740
+</td>
+<td style="text-align:center;">
+2599.3590
+</td>
+</tr>
+<tr>
+<td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
+apol1
+</td>
+<td style="text-align:center;">
+model3
 </td>
 <td style="text-align:center;">
 -758.6075
