@@ -153,6 +153,18 @@ df_covariate2 = data.frame(
 metadata = data.frame(
     flipgroup = data$data$cli$sample_table$flipgroup
 )
+
+tails = c(
+    "chol_efflux"        = "greater",
+    "surface_core_ratio" = "two tail",
+    "eod_overall"        = "two tail",
+    "acl_overall"        = "two tail",
+    "apoa1"              = "two tail",
+    "saa1"               = "two tail",
+    "saa2"               = "two tail",
+    "apol1"              = "two tail"
+)
+
 ```
 
 Create dummy variables for chatagorical data. 
@@ -335,7 +347,7 @@ fits = lapply(vars_outcome, function(outcome){
     fit1 = lm(y ~ design)
     ci1 = confint(fit1)["design",]
     fit1 = summary(fit1)
-    coef1 = fit1$coefficients["design",]
+    coef1 = fit1$coefficients["design",] 
     
     # model 2
     covariates = colnames(df_covariate1)[!is.na(covars$model2[outcome,])]
@@ -356,6 +368,17 @@ fits = lapply(vars_outcome, function(outcome){
     ci3 = confint(fit3)[2,]
     fit3 = summary(fit3)
     coef3 = fit3$coefficients[2,]
+    
+    if(tails[outcome] != "two tail"){
+        if(tails[outcome] == "greater"){
+            lower_tail = FALSE
+        } else {
+            lower_tail = TRUE
+        }
+        coef1[4] = pt(coef1[3], fit1$df[2], lower.tail = lower_tail)
+        coef2[4] = pt(coef2[3], fit2$df[2], lower.tail = lower_tail)
+        coef3[4] = pt(coef3[3], fit3$df[2], lower.tail = lower_tail)
+    }
     
     fit = data.frame(
         rep(outcome, 3),
