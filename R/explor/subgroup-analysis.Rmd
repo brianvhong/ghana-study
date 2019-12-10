@@ -1,0 +1,62 @@
+---
+title: "Subgroup analysis for subjects having a CRP and AGP value"
+author: "Chenghao Zhu"
+date: "`r strftime(Sys.time(), '%Y-%m-%d')`"
+output: html_document
+---
+
+<script>
+// enable toggle for navs
+$('a[data-toggle="tab"]').on('shown.bs.tab', function (e) {
+  var target = $(e.target).attr("href") // activated tab
+  alert(target);
+});
+</script>
+
+<style type="text/css">
+code {
+  font-family: monaco;
+}
+body p{
+    font-size: 12pt
+}
+body li {
+    font: 12pt
+}
+table.table {
+    white-space: nowrap;
+}
+</style>
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+pkgs=c("dplyr", "reshape2", "tibble", "glue", "Metabase", "ggplot2")
+for(pkg in pkgs){
+    suppressPackageStartupMessages(library(pkg, character.only=TRUE))
+}
+load("../apps/app/data/data.rda")
+```
+
+```{r}
+df = data.frame(
+    flipgroup = data$data$cli$sample_table$flipgroup,
+    apoa1 = data$data$glc$peptide$conc_table["pep-APOA1_LAEYHAK Results",],
+    t(data$data$cli$conc_table[c("logagp18", "logcrp18"),])
+) %>%
+    filter(!is.na(logagp18))
+```
+
+```{r}
+fit1 = lm(apoa1 ~ flipgroup + 1, data = df)
+summary(fit1)
+```
+
+
+```{r}
+fit2 = lm(apoa1 ~ flipgroup + logagp18 + logcrp18 + 1, data = df)
+summary(fit2)
+```
+

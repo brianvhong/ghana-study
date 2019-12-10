@@ -21,4 +21,9 @@ do
 done
 set -- "${POSITIONAL[@]}" # restore positional parameters
 
+filename=$(basename -- "$1")
+filename="${filename%.*}"
+
 R -q -e "rmarkdown::render(\"$1\", output_dir=\"$output_dir\")"
+
+open $output_dir/$filename.html
