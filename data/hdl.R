@@ -82,7 +82,7 @@ sampleNames(lpd) = gsub("Ghana ", "ghana_", sampleNames(lpd))
 ##########                      Clinical Values                       ##########
 ################################################################################
 ## read additional sample data
-cli_data = read_csv("../raw_data/dyadg_hdl_covdat_20191109.csv") %>%
+cli_data = read_csv("../raw_data/dyadg_hdl_covdat_20191210.csv") %>%
     mutate(
         flipgroup = factor(flipgroup),
         sample_id = paste0("ghana_", wid),
@@ -101,10 +101,11 @@ cli_data = read_csv("../raw_data/dyadg_hdl_covdat_20191109.csv") %>%
 
 vars = c('wid', 'flipgroup', 'ppregbmi', 'ws2WomanAge', 'totschyrs', 'momht',
          'under5', 'hfia', 'primip', 'gaatdel', 'asset1', 'housing1', 'malaria',
-         'mbhb', 'sex_updated', 'anyepisodes_6to18', 'feverepisodes_6to18',
-         'looseepisodes_6to18', 'ariepisodes_6to18',
-         'poorappetiteepisodes_6to18', 'ffqmeat7', 'ffqeggs7', 'ffqfish7',
-         'ffqdairy7', 'ffqfat7', 'ffqpalm7', 'asf7sum', 'flesh7sum', 'fat_all7')
+         'mbhb', 'sex_updated', "logmbagp", "logmbcrp",
+         'anyepisodes_6to18', 'feverepisodes_6to18', 'looseepisodes_6to18', 
+         'ariepisodes_6to18', 'poorappetiteepisodes_6to18', 'ffqmeat7',
+         'ffqeggs7', 'ffqfish7', 'ffqdairy7', 'ffqfat7', 'ffqpalm7', 'asf7sum',
+         'flesh7sum', 'fat_all7')
 pdata = cli_data[,vars]
 edata = cli_data[,!(colnames(cli_data) %in% vars)]
 edata["ghana_2421", "hcz18"] = NA

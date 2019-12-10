@@ -12,7 +12,7 @@
 
 <meta name="author" content="Chenghao Zhu" />
 
-<meta name="date" content="2019-12-09" />
+<meta name="date" content="2019-12-10" />
 
 <title>Treatment Effects</title>
 
@@ -1592,7 +1592,7 @@ div.tocify {
 
 <h1 class="title toc-ignore">Treatment Effects</h1>
 <h4 class="author">Chenghao Zhu</h4>
-<h4 class="date">2019-12-09</h4>
+<h4 class="date">2019-12-10</h4>
 
 </div>
 
@@ -1690,7 +1690,9 @@ vars_covariate1 = c(
     &quot;mbhb&quot; = &quot;MB Hb conc. g/L&quot;,
     &quot;momht&quot; = &quot;Mom&#39;s height (cm)&quot;,
     &quot;sex_updated&quot; = &quot;Sex updated&quot;,
-    &quot;totschyrs&quot; = &quot;Years of formal education (y)&quot;
+    &quot;totschyrs&quot; = &quot;Years of formal education (y)&quot;,
+    &quot;logmbagp&quot; = &quot;Maternal AGP at enrollment&quot;,
+    &quot;logmbcrp&quot; = &quot;Maternal CRP at enrollment&quot;
 )
 vars_covariates2 = c(
     &quot;logagp18&quot; = &quot;Log AGP at 18 month&quot;,
@@ -1701,14 +1703,14 @@ df_covariate1 = data.frame(
     data$data$cli$sample_table[,c(
         &quot;asset1&quot;,
         &quot;gaatdel&quot;,
-        &quot;hfia&quot;
-    )],
-    data$data$cli$sample_table[,c(
+        &quot;hfia&quot;,
         &quot;malaria&quot;,
         &quot;mbhb&quot;,
         &quot;momht&quot;,
         &quot;sex_updated&quot;,
-        &quot;totschyrs&quot;
+        &quot;totschyrs&quot;,
+        &quot;logmbagp&quot;,
+        &quot;logmbcrp&quot;
     )]
 )
 
@@ -1796,7 +1798,7 @@ pretty_table2 = function(df){
 </div>
 <hr>
 </div>
-<div id="step-2-bivariate-covariates-vs-outcomes" class="section level2">
+<div id="step-2-bivariate-covariates-vs-outcomes" class="section level2 tabset">
 <h2>Step 2: bivariate covariates vs outcomes</h2>
 <p>Correlation between given covariate variable <span class="math inline">\(z\)</span> and outcome variable <span class="math inline">\(y\)</span> is performed using Pearson’s test. The p-value is colored in orange if it’s smaller than 0.1 and in yellow if it’s smaller than 0.05.</p>
 <pre class="r"><code>bivars = lapply(list(df_covariate1, df_covariate2), function(df_covariate){
@@ -1818,7 +1820,7 @@ pretty_table2 = function(df){
         `names&lt;-`(c(&quot;p&quot;, &quot;r&quot;))
 }) %&gt;%
     `names&lt;-`(c(&quot;model2&quot;, &quot;model3&quot;))</code></pre>
-<div id="model-2" class="section level3 tabset">
+<div id="model-2" class="section level3">
 <h3>model 2</h3>
 <pre class="r"><code>pretty_table(bivars$model2$p)</code></pre>
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
@@ -1852,6 +1854,12 @@ sex_updated
 <th style="text-align:center;">
 totschyrs
 </th>
+<th style="text-align:center;">
+logmbagp
+</th>
+<th style="text-align:center;">
+logmbcrp
+</th>
 </tr>
 </thead>
 <tbody>
@@ -1883,6 +1891,12 @@ acl_overall
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.548</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7567</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9257</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
@@ -1911,6 +1925,12 @@ apoa1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7191</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7764</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8768</span>
 </td>
 </tr>
 <tr>
@@ -1941,6 +1961,12 @@ apol1
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4614</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1578</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0329</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
@@ -1969,6 +1995,12 @@ chol_efflux
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3569</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7494</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4325</span>
 </td>
 </tr>
 <tr>
@@ -1999,6 +2031,12 @@ eod_overall
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4665</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8176</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7131</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
@@ -2027,6 +2065,12 @@ saa1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4349</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2561</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0839</span>
 </td>
 </tr>
 <tr>
@@ -2057,6 +2101,12 @@ saa2
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5313</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3898</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1855</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
@@ -2086,12 +2136,18 @@ surface_core_ratio
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3005</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8435</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9429</span>
+</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<div id="model-3" class="section level3 tabset">
+<div id="model-3" class="section level3">
 <h3>model 3</h3>
 <pre class="r"><code>pretty_table(bivars$model3$p)</code></pre>
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
@@ -2124,6 +2180,12 @@ sex_updated
 </th>
 <th style="text-align:center;">
 totschyrs
+</th>
+<th style="text-align:center;">
+logmbagp
+</th>
+<th style="text-align:center;">
+logmbcrp
 </th>
 <th style="text-align:center;">
 logagp18
@@ -2161,6 +2223,12 @@ acl_overall
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.548</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7567</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9257</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0297</span>
@@ -2198,6 +2266,12 @@ apoa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7191</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7764</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8768</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0282</span>
 </td>
 <td style="text-align:center;">
@@ -2231,6 +2305,12 @@ apol1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4614</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1578</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0329</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5134</span>
@@ -2268,6 +2348,12 @@ chol_efflux
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3569</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7494</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4325</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2731</span>
 </td>
 <td style="text-align:center;">
@@ -2301,6 +2387,12 @@ eod_overall
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4665</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8176</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7131</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0131</span>
@@ -2338,6 +2430,12 @@ saa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.4349</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2561</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0839</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3356</span>
 </td>
 <td style="text-align:center;">
@@ -2371,6 +2469,12 @@ saa2
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.5313</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3898</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1855</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.285</span>
@@ -2408,6 +2512,12 @@ surface_core_ratio
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.3005</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.8435</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9429</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.6324</span>
 </td>
 <td style="text-align:center;">
@@ -2419,7 +2529,7 @@ surface_core_ratio
 </div>
 </div>
 </div>
-<div id="step-3-covariate" class="section level2">
+<div id="step-3-covariate" class="section level2 tabset">
 <h2>Step 3: Covariate</h2>
 <p>Next, a complete model was fit between the <strong>treatment group</strong> <span class="math inline">\(t\)</span> and a given <strong>outcome variable</strong> <span class="math inline">\(y\)</span>, with any covariates <span class="math inline">\(z\)</span> that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS).</p>
 <pre class="r"><code>covars = lapply(names(bivars), function(mod){
@@ -2451,7 +2561,7 @@ surface_core_ratio
         `rownames&lt;-`(vars_outcome)
 }) %&gt;%
     `names&lt;-`(names(bivars))</code></pre>
-<div id="model-2-1" class="section level3 tabset">
+<div id="model-2-1" class="section level3">
 <h3>model 2</h3>
 <pre class="r"><code>pretty_table(covars$model2)</code></pre>
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
@@ -2485,6 +2595,12 @@ sex_updated
 <th style="text-align:center;">
 totschyrs
 </th>
+<th style="text-align:center;">
+logmbagp
+</th>
+<th style="text-align:center;">
+logmbcrp
+</th>
 </tr>
 </thead>
 <tbody>
@@ -2503,6 +2619,12 @@ acl_overall
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0331</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2545,13 +2667,19 @@ apoa1
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
 apol1
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.041</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0329</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2573,11 +2701,23 @@ apol1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0302</span>
 </td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
 chol_efflux
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2632,6 +2772,12 @@ eod_overall
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
@@ -2641,7 +2787,7 @@ saa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1056</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1557</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2656,15 +2802,27 @@ saa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1268</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2324</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1526</span>
 </td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
 saa2
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2719,12 +2877,18 @@ surface_core_ratio
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
 </tr>
 </tbody>
 </table>
 </div>
 </div>
-<div id="model-3-1" class="section level3 tabset">
+<div id="model-3-1" class="section level3">
 <h3>model 3</h3>
 <pre class="r"><code>pretty_table(covars$model3)</code></pre>
 <div style="border: 1px solid #ddd; padding: 5px; overflow-x: scroll; width:100%; ">
@@ -2759,6 +2923,12 @@ sex_updated
 totschyrs
 </th>
 <th style="text-align:center;">
+logmbagp
+</th>
+<th style="text-align:center;">
+logmbcrp
+</th>
+<th style="text-align:center;">
 logagp18
 </th>
 <th style="text-align:center;">
@@ -2782,6 +2952,12 @@ acl_overall
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0257</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2831,6 +3007,12 @@ apoa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.7067</span>
 </td>
 <td style="text-align:center;">
@@ -2842,7 +3024,7 @@ apoa1
 apol1
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.041</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0329</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2864,6 +3046,12 @@ apol1
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: yellow !important;">0.0302</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2875,6 +3063,12 @@ apol1
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
 chol_efflux
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2936,6 +3130,12 @@ eod_overall
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color: orange !important;">0.0851</span>
 </td>
 <td style="text-align:center;">
@@ -2950,7 +3150,7 @@ saa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1056</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1557</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -2965,10 +3165,16 @@ saa1
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1268</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2324</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1526</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -3011,10 +3217,22 @@ saa2
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
 </tr>
 <tr>
 <td style="text-align:center;font-weight: bold;color: black !important;background-color: #ABABAB !important;">
 surface_core_ratio
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
+</td>
+<td style="text-align:center;">
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
 </td>
 <td style="text-align:center;">
 <span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">.</span>
@@ -3553,22 +3771,22 @@ saa1
 model2
 </td>
 <td style="text-align:center;">
-1547.5537
+1905.1933
 </td>
 <td style="text-align:center;">
-1286.3489
+1300.8718
 </td>
 <td style="text-align:center;">
-1.2031
+1.4646
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2327</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1473</span>
 </td>
 <td style="text-align:center;">
--1014.9847
+-686.8504
 </td>
 <td style="text-align:center;">
-4110.0921
+4497.2370
 </td>
 </tr>
 <tr>
@@ -3579,22 +3797,22 @@ saa1
 model3
 </td>
 <td style="text-align:center;">
-1547.5537
+1905.1933
 </td>
 <td style="text-align:center;">
-1286.3489
+1300.8718
 </td>
 <td style="text-align:center;">
-1.2031
+1.4646
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.2327</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.1473</span>
 </td>
 <td style="text-align:center;">
--1014.9847
+-686.8504
 </td>
 <td style="text-align:center;">
-4110.0921
+4497.2370
 </td>
 </tr>
 <tr>
@@ -3709,22 +3927,22 @@ apol1
 model2
 </td>
 <td style="text-align:center;">
--758.6075
+18.7397
 </td>
 <td style="text-align:center;">
-1686.0033
+1681.7860
 </td>
 <td style="text-align:center;">
--0.4499
+0.0111
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.654</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9911</span>
 </td>
 <td style="text-align:center;">
--4116.5740
+-3331.5498
 </td>
 <td style="text-align:center;">
-2599.3590
+3369.0292
 </td>
 </tr>
 <tr>
@@ -3735,22 +3953,22 @@ apol1
 model3
 </td>
 <td style="text-align:center;">
--758.6075
+18.7397
 </td>
 <td style="text-align:center;">
-1686.0033
+1681.7860
 </td>
 <td style="text-align:center;">
--0.4499
+0.0111
 </td>
 <td style="text-align:center;">
-<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.654</span>
+<span style="     border-radius: 4px; padding-right: 4px; padding-left: 4px; background-color:  !important;">0.9911</span>
 </td>
 <td style="text-align:center;">
--4116.5740
+-3331.5498
 </td>
 <td style="text-align:center;">
-2599.3590
+3369.0292
 </td>
 </tr>
 </tbody>

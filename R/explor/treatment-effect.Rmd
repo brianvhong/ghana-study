@@ -118,7 +118,9 @@ vars_covariate1 = c(
     "mbhb" = "MB Hb conc. g/L",
     "momht" = "Mom's height (cm)",
     "sex_updated" = "Sex updated",
-    "totschyrs" = "Years of formal education (y)"
+    "totschyrs" = "Years of formal education (y)",
+    "logmbagp" = "Maternal AGP at enrollment",
+    "logmbcrp" = "Maternal CRP at enrollment"
 )
 vars_covariates2 = c(
     "logagp18" = "Log AGP at 18 month",
@@ -129,14 +131,14 @@ df_covariate1 = data.frame(
     data$data$cli$sample_table[,c(
         "asset1",
         "gaatdel",
-        "hfia"
-    )],
-    data$data$cli$sample_table[,c(
+        "hfia",
         "malaria",
         "mbhb",
         "momht",
         "sex_updated",
-        "totschyrs"
+        "totschyrs",
+        "logmbagp",
+        "logmbcrp"
     )]
 )
 
@@ -233,7 +235,7 @@ pretty_table2 = function(df){
 
 <hr>
 
-## Step 2: bivariate covariates vs outcomes
+## Step 2: bivariate covariates vs outcomes {.tabset}
 
 Correlation between given covariate variable $z$ and outcome variable $y$ is performed using Pearson's test. The p-value is colored in orange if it's smaller than 0.1 and in yellow if it's smaller than 0.05.
 
@@ -259,19 +261,19 @@ bivars = lapply(list(df_covariate1, df_covariate2), function(df_covariate){
     `names<-`(c("model2", "model3"))
 ```
 
-### model 2 {.tabset}
+### model 2
 
 ```{r}
 pretty_table(bivars$model2$p)
 ```
 
-### model 3 {.tabset}
+### model 3
 
 ```{r}
 pretty_table(bivars$model3$p)
 ```
 
-## Step 3: Covariate
+## Step 3: Covariate {.tabset}
 
 Next, a complete model was fit between the **treatment group** $t$ and a given **outcome variable** $y$, with any covariates $z$ that is significant (<span style="color: red;">p smaller than 0.1</span>) in step 2. The complete model also include the treatment group (IFA or LNS). 
 
@@ -307,13 +309,13 @@ covars = lapply(names(bivars), function(mod){
     `names<-`(names(bivars))
 ```
 
-### model 2 {.tabset}
+### model 2
 
 ```{r}
 pretty_table(covars$model2)
 ```
 
-### model 3 {.tabset}
+### model 3
 
 ```{r}
 pretty_table(covars$model3)
