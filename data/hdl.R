@@ -110,6 +110,8 @@ pdata = cli_data[,vars]
 edata = cli_data[,!(colnames(cli_data) %in% vars)]
 edata["ghana_2421", "hcz18"] = NA
 edata["ghana_2421", "hcz12"] = NA
+edata["ghana_2421", "hcz1812"] = NA
+edata["ghana_2421", "hcz18-12"] = NA
 edata = edata[, c(
     which(!grepl("[a-z]{2}z1[28]{1}", colnames(edata))),
     which(grepl("[a-z]{2}z1[28]{1}", colnames(edata)))
